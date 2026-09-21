@@ -12,13 +12,13 @@ OUT = Path(__file__).resolve().parent / "fig_cpu_gpu_branching.png"
 # gpu_kernel_ms, cpu_ms
 n1 = {
     "label": "N = 1,048,576",
-    "gpu": [0.0884, 0.1707, 0.0884],
-    "cpu": [1035.0905, 1035.5291, 1035.5822],
+    "gpu": [0.0883, 0.1722, 0.0885],
+    "cpu": [1023.0758, 1021.6631, 1023.6998],
 }
 n4 = {
     "label": "N = 4,194,304",
-    "gpu": [0.3389, 0.6700, 0.3411],
-    "cpu": [4142.1855, 4142.6646, 4142.4194],
+    "gpu": [0.3410, 0.6743, 0.3443],
+    "cpu": [4144.4995, 4139.3271, 4145.7388],
 }
 names = ["Branchless\n(path A only)", "Divergent\n(i & 1)", "Warp-uniform\n(i / warpSize) & 1"]
 x = np.arange(len(names))
@@ -47,8 +47,8 @@ for bars in (b1, b2):
         )
 # Annotate the 2x relationship on the 4M series.
 ax.annotate(
-    "0.670 / 0.339 = 1.98×",
-    xy=(1 + w / 2, 0.670),
+    "0.674 / 0.341 = 1.98×",
+    xy=(1 + w / 2, 0.674),
     xytext=(1.55, 0.78),
     fontsize=8,
     color="#0f4c81",

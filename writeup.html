@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EN.605.617.81 — CUDA Threads and Blocks — Xiaohui Chen</title>
+<style>
+  :root {
+    --bg: #f6f3ec;
+    --surface: #ffffff;
+    --text: #1c1917;
+    --muted: #57534e;
+    --border: #e4e0d8;
+    --accent: #0f4c81;
+    --accent-soft: #e4eef6;
+    --def: #1d4ed8;
+    --def-bg: #eff6ff;
+    --key: #047857;
+    --key-bg: #ecfdf5;
+    --ex: #b45309;
+    --ex-bg: #fffbeb;
+    --pit: #b91c1c;
+    --pit-bg: #fef2f2;
+    --code-bg: #1c1917;
+    --code-fg: #f5f5f4;
+    --kw: #93c5fd;
+    --type: #6ee7b7;
+    --str: #fcd34d;
+    --cm: #a8a29e;
+    --fn: #c4b5fd;
+    --max: 860px;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161412;
+      --surface: #1f1c19;
+      --text: #f5f5f4;
+      --muted: #a8a29e;
+      --border: #3f3a34;
+      --accent: #7eb6e0;
+      --accent-soft: #243445;
+      --def: #93c5fd;
+      --def-bg: #1e2a3d;
+      --key: #6ee7b7;
+      --key-bg: #163028;
+      --ex: #fbbf24;
+      --ex-bg: #3a2e14;
+      --pit: #fca5a5;
+      --pit-bg: #3a1d1d;
+      --code-bg: #0c0a09;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    font-size: 17px;
+  }
+  main { max-width: var(--max); margin: 0 auto; padding: 1.4rem 1.25rem 4rem; }
+  .running {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    padding: 0.2rem 0 0.4rem;
+    margin: 1.6rem 0 0.8rem;
+  }
+  .running span { white-space: nowrap; }
+  header.cover {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem 1.6rem 1.5rem;
+    margin-bottom: 1.4rem;
+  }
+  header.cover h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 0.4rem; }
+  header.cover .kicker {
+    margin: 0 0 0.5rem;
+    color: var(--accent);
+    font-size: 0.82rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 650;
+  }
+  .meta { width: 100%; margin-top: 1rem; font-size: 0.95rem; }
+  .meta th { width: 34%; }
+  h2 { font-size: 1.4rem; margin: 2rem 0 0.6rem; padding-top: 0.2rem; }
+  h3 { font-size: 1.12rem; margin: 1.5rem 0 0.45rem; }
+  p { margin: 0.65rem 0; }
+  a { color: var(--accent); }
+  .callout {
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+    margin: 1rem 0;
+    border: 1px solid var(--border);
+  }
+  .callout strong.label {
+    display: block;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+  .definition { background: var(--def-bg); }
+  .definition .label { color: var(--def); }
+  .keypoint { background: var(--key-bg); }
+  .keypoint .label { color: var(--key); }
+  .example { background: var(--ex-bg); }
+  .example .label { color: var(--ex); }
+  .pitfall { background: var(--pit-bg); }
+  .pitfall .label { color: var(--pit); }
+  figure {
+    margin: 1.2rem 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.7rem;
+  }
+  figure img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+  figcaption { font-size: 0.88rem; color: var(--muted); margin-top: 0.55rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 0.8rem 0 1.1rem; background: var(--surface); }
+  th, td { border: 1px solid var(--border); padding: 0.38rem 0.5rem; vertical-align: top; text-align: left; }
+  th { background: var(--accent-soft); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+  .kw { color: var(--kw); }
+  .ty { color: var(--type); }
+  .st { color: var(--str); }
+  .cm { color: var(--cm); }
+  .fn { color: var(--fn); }
+  ul, ol { padding-left: 1.25rem; }
+  li { margin: 0.28rem 0; }
+  .why { color: var(--muted); font-size: 0.95rem; }
+  footer.refs { font-size: 0.92rem; }
+  footer.refs li { margin: 0.4rem 0; }
+  nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.15rem; }
+  nav.toc h2 { margin-top: 0; }
+  @media print {
+    body { background: #fff; font-size: 11pt; }
+    main { max-width: none; padding: 0; }
+    .running { break-before: page; }
+    .running:first-of-type { break-before: avoid; }
+    @page {
+      size: letter;
+      margin: 1.6cm 1.6cm 2.1cm;
+      @bottom-center {
+        content: "Xiaohui Chen  ·  EN.605.617.81 CUDA Threads and Blocks  ·  page " counter(page) " of " counter(pages);
+        font-size: 9pt;
+        color: #57534e;
+      }
+    }
+    header.cover { break-after: page; }
+  }
+</style>
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]'], ['$$', '$$']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+</head>
+<body>
+<main>
+
+<header class="cover" id="cover">
+  <p class="kicker">Cover sheet</p>
+  <h1>CUDA Threads and Blocks</h1>
+  <p>EN.605.617.81 — Introduction to GPU Programming, Module 3 assignment</p>
+  <table class="meta">
+    <tr><th>Student</th><td>Xiaohui Chen</td></tr>
+    <tr><th>Course / term</th><td>EN.605.617.81, AE Fall 2026</td></tr>
+    <tr><th>Instructor</th><td>Chance Pascale</td></tr>
+    <tr><th>Assignment</th><td>CUDA Threads and Blocks (Module 3)</td></tr>
+    <tr><th>Date</th><td>20 September 2026</td></tr>
+    <tr><th>Hardware</th><td>DGX Spark, NVIDIA GB10, compute capability 12.1, 48 SMs, warp size 32</td></tr>
+    <tr><th>Software</th><td>CUDA Toolkit 13.0 (<code>nvcc</code> V13.0.88), driver 580.159.03, <code>-arch=native</code></td></tr>
+    <tr><th>Program</th><td><code>module3/assignment.cu</code>, built as <code>assignment.exe</code> by <code>make</code></td></tr>
+  </table>
+  <p class="why">Name and a page indicator appear in the running header of every section below, and again in the print footer as “page x of y”.</p>
+</header>
+
+<div class="running">
+  <span>Xiaohui Chen</span>
+  <span>EN.605.617.81 · CUDA Threads and Blocks</span>
+  <span>page 2 of 8</span>
+</div>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#part1">Part 1 — Branchless CPU and GPU</a></li>
+    <li><a href="#part2">Part 2 — Conditional branching on CPU and GPU</a></li>
+    <li><a href="#critique">Part 3 — Previous-year <code>main</code></a></li>
+    <li><a href="#takeaways">Takeaways</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</nav>
+
+<h2 id="part1">Part 1 — The same algorithm on the CPU and on a CUDA kernel, with almost no branching</h2>
+
+<h3>Problem statement</h3>
+<p>Write one algorithm twice: once as ordinary C++ on the host, once as a CUDA kernel. Keep conditional branching to a minimum. Use a non-trivial amount of data (thousands to millions of elements). Time both sides, and show that they compute the same numbers. The program must be <code>module3/assignment.cu</code>, built by a no-argument <code>make</code> into <code>assignment.exe</code>, and must accept the starter’s two arguments: total number of threads, then threads per block, including the required invocation <code>assignment.exe 512 256</code>.</p>
+
+<h3>Assumptions</h3>
+<ul>
+  <li><strong>Launch vs data size.</strong> <code>argv[1]</code> and <code>argv[2]</code> size the GPU launch only (course starter). After rounding, that launch may be smaller than \(N\). \(N\) is at least \(2^{20} = 1{,}048{,}576\) so the required <code>assignment.exe 512 256</code> still processes “1000s to millions” of elements; a grid-stride loop covers \(N\). The 1-D index is the Module 3D formula \(i = \texttt{blockIdx.x}\cdot\texttt{blockDim.x} + \texttt{threadIdx.x}\) <a href="#ref2">[2]</a>, then \(i \mathrel{+}= \texttt{blockDim.x}\cdot\texttt{gridDim.x}\).</li>
+  <li><strong>Block size 256</strong> unless the command line says otherwise. That is a multiple of the 32-thread warp and is the Lecture 3D default (“192 or 256”) <a href="#ref2">[2]</a>.</li>
+  <li><strong>The CPU is one thread.</strong> The prompt says the host side does not take the launch arguments into account. I did not add OpenMP.</li>
+  <li><strong>Kernel time is not memcpy time.</strong> GPU kernel milliseconds come from <code>cudaEventRecord</code> around the launch only, after a warm-up, averaged over 10 runs. Host-to-device and device-to-host copies are reported separately as “end-to-end.” CPU milliseconds are <code>std::chrono::high_resolution_clock</code>, one warm-up, average of 5.</li>
+  <li><strong>Arithmetic intensity is deliberate.</strong> Each element does 1,024 fused multiply-adds so the kernel is compute-bound. A one-add vector kernel would hide the later branching result in memory wait. That choice is mine, not the prompt’s.</li>
+  <li><strong>Hardware</strong> is the DGX Spark listed on the cover. Times will not match a different GPU.</li>
+</ul>
+
+<h3>Computations</h3>
+<p>The branchless work is a Horner-style recurrence shared by host and device (<code>__host__ __device__</code>), so the two sides cannot silently drift:</p>
+<pre><code><span class="kw">__host__ __device__</span> <span class="ty">float</span> <span class="fn">pathA</span>(<span class="ty">float</span> v, <span class="ty">int</span> iters) {
+    <span class="kw">for</span> (<span class="ty">int</span> k = <span class="st">0</span>; k &lt; iters; ++k)
+        v = v * <span class="st">1.0001f</span> + <span class="st">1.0f</span>;
+    <span class="kw">return</span> v;
+}</code></pre>
+<p>The kernel is then just “every thread applies <code>pathA</code> to its element,” plus a bounds guard that is never taken when \(N\) is a multiple of the block size (the starter rounds \(N\) so that this is the usual case). Input is \(x_i = 0.001\cdot(i \bmod 1000) + 0.1\).</p>
+<p>Correctness is a pairwise compare of the CPU array and the GPU array with tolerance \(10^{-4}\). On this machine the error was <strong>0</strong> at every size I ran: the values are bit-identical. A hand check of \(y_0\) after 1,024 iterations of path A is \(1078.328369\) on both sides.</p>
+
+<table>
+  <caption>Table 1 — Branchless CPU vs GPU. GPU kernel time excludes copies. Source: <code>proof/run_512_256.txt</code>, <code>proof/run_1048576.txt</code>, <code>proof/run_4194304.txt</code>.</caption>
+  <thead>
+    <tr><th>Launch</th><th class="num">\(N\)</th><th class="num">CPU (ms)</th><th class="num">GPU kernel (ms)</th><th class="num">GPU end-to-end (ms)</th><th class="num">CPU / GPU kernel</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>512 256</code> (stride over \(N\))</td><td class="num">1,048,576</td><td class="num">1035.63</td><td class="num">4.0558</td><td class="num">4.1980</td><td class="num">255×</td></tr>
+    <tr><td>default <code>1&lt;&lt;20</code>, 256</td><td class="num">1,048,576</td><td class="num">1023.08</td><td class="num">0.0883</td><td class="num">0.2384</td><td class="num">11,581×</td></tr>
+    <tr><td><code>4194304 256</code></td><td class="num">4,194,304</td><td class="num">4144.50</td><td class="num">0.3410</td><td class="num">0.9076</td><td class="num">12,155×</td></tr>
+  </tbody>
+</table>
+
+<h3>Conclusions / discussion</h3>
+<p>The required <code>assignment.exe 512 256</code> run builds, launches two blocks of 256 threads, and still processes \(N = 1{,}048{,}576\) elements (grid-stride). It matches the CPU bit-for-bit. Those 512 threads occupy only a couple of the 48 SMs, so the kernel is about 46× slower than the same \(N\) launched with 1,048,576 threads (4.06 ms vs 0.088 ms). That is Lecture 3D’s utilization point, not a timing bug. The million-thread and four-million-thread rows are the ones that keep the GPU busy. There the GPU kernel is about four orders of magnitude faster than one CPU thread, which is what you would hope for a long FMA loop spread over 48 SMs. End-to-end is slower than the kernel (copies of 4–16 MiB) and still far ahead of the CPU, because 1,024 operations per element dominate a few megabytes of traffic on this box. I would not expect the same ratio from a memory-bound kernel.</p>
+<p>The launch arithmetic is the Module 3 point: 1,048,576 threads at 256 per block is 4,096 blocks, which is many more blocks than SMs. That is the intended state — the block dispatcher keeps the 48 SMs busy <a href="#ref2">[2]</a>.</p>
+
+<div class="running">
+  <span>Xiaohui Chen</span>
+  <span>EN.605.617.81 · CUDA Threads and Blocks</span>
+  <span>page 3 of 8</span>
+</div>
+
+<h2 id="part2">Part 2 — The same algorithm with a conditional branch</h2>
+
+<h3>Problem statement</h3>
+<p>Keep the same two arithmetic paths and the same CPU / GPU pairing, but now choose the path with an <code>if</code>/<code>else</code>. Measure what that does to each side. Include a comparison chart and a short discussion (also in <code>results-thoughts.txt</code>).</p>
+
+<h3>Assumptions</h3>
+<ul>
+  <li>Path B is the same length as path A: \(v \leftarrow 0.9999\,v - 1\), 1,024 times. Equal path lengths make a fully divergent warp’s bill theoretically \(2\times\), which is a clean test rather than a realistic mix of cheap and expensive sides.</li>
+  <li>The condition is on the <em>index</em>, not on the data, so I am measuring control-flow cost, not a change in the values being fed in.</li>
+  <li>Two GPU conditions, on purpose:
+    <ul>
+      <li><strong>Divergent:</strong> <code>if (i &amp; 1)</code> — odd and even lanes of every warp disagree. This is the case Lecture 3A warned about <a href="#ref1">[1]</a>.</li>
+      <li><strong>Warp-uniform:</strong> <code>if ((i / warpSize) &amp; 1)</code> — consecutive warps take opposite paths, no warp is split. This is the “condition depends only on <code>(threadIdx / WSIZE)</code>” example in the CUDA C++ Best Practices Guide 13.0 §13.1 <a href="#ref4">[4]</a>.</li>
+    </ul>
+  </li>
+  <li>The CPU uses the same two conditions. I read the device <code>warpSize</code> (32) and pass it into the host loop so “uniform” means the same grouping on both sides.</li>
+  <li>Compute capability 12.1 has independent thread scheduling (since 7.0) <a href="#ref5">[5]</a>. That does not cancel the bill: both paths are still issued, with the other lanes inactive.</li>
+</ul>
+
+<h3>Computations</h3>
+<p>The divergent kernel, stripped to the test:</p>
+<pre><code><span class="kw">if</span> (i &amp; <span class="st">1</span>) y[i] = <span class="fn">pathA</span>(x[i], iters);
+<span class="kw">else</span>       y[i] = <span class="fn">pathB</span>(x[i], iters);</code></pre>
+<p>The warp-uniform kernel replaces the condition with <code>(i / warpSize) &amp; 1</code>, using the CUDA built-in rather than a hard-coded 32, as Lecture 3A slide 5 asked <a href="#ref1">[1]</a>.</p>
+<p>Correctness again compared every element to the CPU. Error was 0. A hand check of the divergent case confirmed the wiring: \(x_0\) takes path B and lands on \(-973.263611\); \(x_1\) takes path A and lands on the Part 1 value. Both sides agreed.</p>
+
+<table>
+  <caption>Table 2 — All three variants. GPU “rel.” is kernel time divided by the branchless kernel at the same \(N\). Source: the same three proof transcripts as Table 1.</caption>
+  <thead>
+    <tr><th>\(N\)</th><th>Variant</th><th class="num">CPU (ms)</th><th class="num">GPU kernel (ms)</th><th class="num">GPU rel.</th><th class="num">CPU rel.</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1,048,576</td><td>branchless</td><td class="num">1023.08</td><td class="num">0.0883</td><td class="num">1.00×</td><td class="num">1.000</td></tr>
+    <tr><td>1,048,576</td><td>divergent <code>i &amp; 1</code></td><td class="num">1021.66</td><td class="num">0.1722</td><td class="num">1.95×</td><td class="num">0.999</td></tr>
+    <tr><td>1,048,576</td><td>warp-uniform</td><td class="num">1023.70</td><td class="num">0.0885</td><td class="num">1.00×</td><td class="num">1.001</td></tr>
+    <tr><td>4,194,304</td><td>branchless</td><td class="num">4144.50</td><td class="num">0.3410</td><td class="num">1.00×</td><td class="num">1.000</td></tr>
+    <tr><td>4,194,304</td><td>divergent <code>i &amp; 1</code></td><td class="num">4139.33</td><td class="num">0.6743</td><td class="num">1.98×</td><td class="num">0.999</td></tr>
+    <tr><td>4,194,304</td><td>warp-uniform</td><td class="num">4145.74</td><td class="num">0.3443</td><td class="num">1.01×</td><td class="num">1.000</td></tr>
+  </tbody>
+</table>
+
+<figure>
+  <img src="figures/fig_cpu_gpu_branching.png" alt="Two-panel bar chart. Left: GPU kernel time is about twice as long for the odd/even branch as for branchless or warp-uniform, at both one million and four million elements. Right: CPU time is flat across the three variants.">
+  <figcaption>Figure 1 — CPU vs GPU for the three variants, at \(N = 1{,}048{,}576\) and \(N = 4{,}194{,}304\). Left panel is GPU kernel time (the divergence shows up here). Right panel is CPU time (it does not). Numbers are from Table 2. Chart generated by <code>figures/make_chart.py</code> from those measurements, 20 September 2026.</figcaption>
+</figure>
+
+<div class="running">
+  <span>Xiaohui Chen</span>
+  <span>EN.605.617.81 · CUDA Threads and Blocks</span>
+  <span>page 4 of 8</span>
+</div>
+
+<h3>Conclusions / discussion</h3>
+<p>The GPU result is the Module 3 lecture, measured. A warp issues one instruction at a time <a href="#ref5">[5]</a>. When 16 lanes want path A and 16 want path B, the warp runs both loops and masks off the idle half; with equal-length loops the time is the sum, which is why the ratio sits at 1.95× and 1.98× rather than “a bit slower.” The same 2× shows up on the required 512-thread launch (8.00 / 4.06 = 1.97×), so the tax is the split warp, not the block count. When the same <code>if</code> is written so that a whole warp agrees, the second loop is never issued for that warp, and the time falls back on the branchless line. Lecture 3A’s half-warp wording is the 2017 version of that idea; on compute capability 12.1 the unit that has to agree is the full 32-thread warp.</p>
+<p>The CPU result is the reason the prompt asked for both implementations. The same source-level <code>if (i &amp; 1)</code> moves the host time by a fraction of a millisecond on a one-second run. A CPU thread has its own program counter and a branch predictor; alternating odd/even is learned immediately. So “branches are expensive” is not a property of the <code>if</code> token. It is a property of <em>one instruction stream shared by 32 lanes</em>.</p>
+<p>An analogy I used on myself: a CPU thread is a person reading a choose-your-own-adventure book alone. A warp is 32 people sharing one reader. If they disagree about which page to turn to, the reader has to read both pages aloud. If you seat the people so that each group of 32 wants the same page, you are back to one page.</p>
+<p>I am not reading the 10,000× CPU-to-GPU column as a general GPU-is-always-that-fast claim. It is this kernel, this iteration count, this one CPU thread, this GPU. The number that I trust as a design rule is the <em>GPU-to-itself</em> 2× when a warp splits.</p>
+
+<div class="callout keypoint">
+  <strong class="label">Key point</strong>
+  If the algorithm needs a branch, write the condition so that it is constant on a warp — <code>(i / warpSize)</code>, or <code>blockIdx</code> — or pack the data so that a whole warp is on one side. Interleaving the two sides inside 32 consecutive threads is the expensive layout, and the CPU will not warn you about it.
+</div>
+
+<div class="running">
+  <span>Xiaohui Chen</span>
+  <span>EN.605.617.81 · CUDA Threads and Blocks</span>
+  <span>page 5 of 8</span>
+</div>
+
+<h2 id="critique">Part 3 — The previous-year <code>main</code> (prompt item 5)</h2>
+<p>The prompt shows a <code>main</code> from an earlier year and asks: if the surrounding script only executes that function once, what is good and bad about the submission? I am not fixing it and I am not submitting it.</p>
+
+<h3>Problem statement</h3>
+<p>Critique the listed <code>main</code> under a single-execution script. Short, specific, no rewrite.</p>
+
+<h3>Assumptions</h3>
+<p>I take the listing as written: <code>add&lt;&lt;&lt;blocks,threads&gt;&gt;&gt;</code> timed with <code>std::chrono</code> and no device synchronize before <code>stop</code>; <code>argv[1]</code> is a block count; arrays are <code>int a[N]</code> on the stack; <code>addHost</code> writes into the same <code>c</code> that just came back from the device. I do not assume a value of <code>N</code> that is not in the listing.</p>
+
+<h3>What is good</h3>
+<p>It prints card info, it has a CPU sibling of the kernel, it lets the launch configuration change on the command line, and it prints both times. Those are the right pieces for this assignment.</p>
+
+<h3>What is bad on a single run</h3>
+<ol>
+  <li><strong>The GPU clock is not measuring the kernel.</strong> A kernel launch returns when the work is queued. Without <code>cudaDeviceSynchronize</code> or a <code>cudaEvent</code> synchronize before <code>stop</code>, the “GPU” interval is launch overhead. On one execution that number looks like a spectacular speedup and there is no second sample to make you suspicious. This is the defect that a one-shot script punishes most.</li>
+  <li><strong>The arguments are not this year’s arguments.</strong> Last year, <code>argv[1]</code> was blocks and <code>argv[2]</code> was threads per block. This year <code>assignment.exe 512 256</code> means 512 total threads and 256 per block (two blocks). The same command on last year’s <code>main</code> launches \(512\times 256 = 131{,}072\) threads and still walks a compile-time <code>N</code>.</li>
+  <li><strong>\(N\) and the grid do not have to match.</strong> Defaults are 3 blocks × 64 threads = 192 threads. Either most of <code>N</code> is never touched, or, if <code>N</code> is large and the arrays really are <code>int a[N]</code> on the stack, the “thousands to millions” the prompt asked for will not fit.</li>
+  <li><strong>No CUDA error checks.</strong> A failed <code>cudaMalloc</code> or an illegal launch is silent. A one-shot script then looks like a passing run.</li>
+  <li><strong>The CPU pass overwrites the evidence.</strong> <code>addHost(a, b, c)</code> writes into <code>c</code> after the device-to-host copy, so that single execution cannot compare GPU output to CPU output.</li>
+  <li><strong>No warmup.</strong> The first launch includes extra driver work. One number is not a measurement.</li>
+</ol>
+
+<h3>Conclusions</h3>
+<p>The one-execution constraint is what turns “rough lab code” into a bad submission. There is no second run to notice that the GPU time is implausibly small, no check that <code>c</code> is right, and a default grid of 192 threads that will not keep a modern GPU busy — the opposite of Lecture 3D’s “allocate large numbers of threads” <a href="#ref2">[2]</a>. The good instincts (CPU sibling, printed times, card info) are all undercut by timing an asynchronous launch with a host clock and then throwing away the GPU result.</p>
+
+<div class="running">
+  <span>Xiaohui Chen</span>
+  <span>EN.605.617.81 · CUDA Threads and Blocks</span>
+  <span>page 6 of 8</span>
+</div>
+
+<h2 id="takeaways">Takeaways</h2>
+<ul>
+  <li><code>assignment.exe 512 256</code> builds with <code>make</code>, runs, processes \(N = 10^6\) via grid-stride, and matches the CPU. A full 1,048,576-thread launch of the same \(N\) is the utilization comparison.</li>
+  <li>The branchless kernel is the same recurrence on both sides and is bit-identical.</li>
+  <li>An <code>if</code> that splits a warp costs this GPU almost \(2\times\) when the two sides are the same length. The same <code>if</code> aligned to <code>warpSize</code> costs nothing extra. The CPU does not care either way.</li>
+  <li>Time kernels with device events and a synchronize, not with a host clock around an asynchronous launch. Check every CUDA call. Do not overwrite the array you still need to verify.</li>
+</ul>
+
+<div class="running">
+  <span>Xiaohui Chen</span>
+  <span>EN.605.617.81 · CUDA Threads and Blocks</span>
+  <span>page 7 of 8</span>
+</div>
+
+<h2 id="refs">References</h2>
+<footer class="refs">
+<ol>
+  <li id="ref1">Pascale, Chancellor T. <cite>Module 3 Lecture 3A — CUDA Warps and Branching</cite>. EN.605.617 lecture slides with speaker notes, 6 pp., PowerPoint 2013, PDF dated 2017-09-13. Slide 5 (32 threads per warp, use <code>warpSize</code>); slide 6 (branching has a “big cost”; half-warp wording).</li>
+  <li id="ref2">Pascale, Chancellor T. <cite>Module 3 Lecture 3D — CUDA Blocks and Grids</cite>. EN.605.617 lecture slides with speaker notes, 12 pp., PowerPoint 2013, PDF dated 2017-09-13. Slide 5 (global index \(=\texttt{blockIdx.x}*\texttt{blockDim.x}+\texttt{threadIdx.x}\); blocks are multiples of warps); slide 6 (default 192 or 256 threads per block; maximize utilization with large thread counts); slide 7 (block dispatcher, do not depend on block order).</li>
+  <li id="ref3">EN.605.617 course slides, author not named on the deck. <cite>Introduction to GPU Programming — Kernel Execution</cite>. 7 pp., Keynote, PDF dated 2024-09-03. Slide 4 (thread / block / grid mapping); slide 5 (launch syntax <code>&lt;&lt;&lt;Dg, Db, Ns, S&gt;&gt;&gt;</code>).</li>
+  <li id="ref4">NVIDIA. <cite>CUDA C++ Best Practices Guide</cite>, CUDA Toolkit 13.0.1, §13.1 “Branching and Divergence.” High-priority rule: avoid different execution paths within the same warp; a condition that depends only on <code>(threadIdx / WSIZE)</code> does not diverge. <a href="https://docs.nvidia.com/cuda/archive/13.0.1/cuda-c-best-practices-guide/index.html#branching-and-divergence">https://docs.nvidia.com/cuda/archive/13.0.1/cuda-c-best-practices-guide/index.html#branching-and-divergence</a></li>
+  <li id="ref5">NVIDIA. <cite>CUDA Programming Guide</cite>, “SIMT Execution Model” (§3.2.2.1 in the current guide). A warp is 32 threads; it executes one common instruction at a time; if lanes diverge, each taken path is executed with the other lanes disabled; independent thread scheduling from compute capability 7.0 does not remove that cost. <a href="https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/advanced-kernel-programming.html">https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/advanced-kernel-programming.html</a></li>
+  <li id="ref6">NVIDIA. <cite>CUDA Refresher: The CUDA Programming Model</cite>, NVIDIA Technical Blog, 2020. Thread → CUDA core, block → SM, grid → GPU. <a href="https://developer.nvidia.com/blog/cuda-refresher-cuda-programming-model/">https://developer.nvidia.com/blog/cuda-refresher-cuda-programming-model/</a></li>
+  <li id="ref7">Johns Hopkins University. <cite>EN.605.617 section 81 Syllabus</cite> (HelioCampus export) and the Module 3 assignment prompt <cite>CUDA Threads and Blocks Assignment</cite> (course EPUB, 2026).</li>
+  <li id="ref8">This assignment’s own runs: <code>module3/assignment.cu</code> compiled and executed on the DGX Spark on 2026-09-20. Unedited transcripts in <code>proof/run_512_256.txt</code>, <code>proof/run_1048576.txt</code>, <code>proof/run_4194304.txt</code>.</li>
+</ol>
+</footer>
+
+<div class="running">
+  <span>Xiaohui Chen</span>
+  <span>EN.605.617.81 · CUDA Threads and Blocks</span>
+  <span>page 8 of 8</span>
+</div>
+
+<h2 id="appendix">Appendix — How the program was run</h2>
+<pre><code>export PATH=/usr/local/cuda/bin:$PATH
+cd module3
+make
+./assignment.exe 512 256
+./assignment.exe
+./assignment.exe 4194304 256</code></pre>
+<p>Every CUDA call goes through <code>CUDA_CHECK</code>. The process exits non-zero if any correctness group fails. On 2026-09-20 all three commands printed <code>All correctness checks passed.</code></p>
+
+</main>
+</body>
+</html>

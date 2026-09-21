@@ -7,8 +7,16 @@
 //   argv[2] = threads per block        (default 256)
 //   ./assignment.exe 512 256
 //
-// Part 1: the same branchless Horner-style iteration on CPU and GPU.
-// Part 2: the same two arithmetic paths, but selected by a conditional
+// Those two numbers are the GPU *launch*, not the data size. The CPU
+// does not use them (the prompt: you do not have much control over
+// host threading). The array length is at least 1,048,576 so the
+// required 512 256 invocation still processes "1000s to millions" of
+// elements; extra threads, if requested, enlarge N. The GPU covers N
+// with a grid-stride loop.
+//
+// Part 1: the same branchless Horner-style iteration on CPU and GPU
+//         (no data-dependent if/else in that kernel or host loop).
+// Part 2: the same two arithmetic paths, selected by a conditional
 //         that either splits every warp or is uniform across a warp.
 
 #include "cuda_check.h"
@@ -19,8 +27,7 @@
 #include <cstdlib>
 #include <vector>
 
-// Enough iterations that the kernels are compute-bound, so warp
-// divergence shows up as time rather than disappearing into memory wait.
+static const int kMinElements = 1 << 20;  // item 1: thousands to millions
 static const int kIters = 1024;
 static const int kGpuWarmup = 1;
 static const int kGpuReps = 10;
@@ -43,9 +50,9 @@ __host__ __device__ __forceinline__ float pathB(float v, int iters)
 }
 
 enum Variant {
-    kBranchless = 0,  // every element takes pathA
-    kDivergent  = 1,  // odd/even index: splits every 32-thread warp
-    kUniform    = 2   // whole warps take one path or the other
+    kBranchless = 0,
+    kDivergent  = 1,
+    kUniform    = 2
 };
 
 static const char *variantName(Variant v)
@@ -58,25 +65,59 @@ static const char *variantName(Variant v)
     return "unknown";
 }
 
-// One thread, one element. The bounds guard is inactive when N is a
-// multiple of the block size (the starter rounds totalThreads up so
-// that is the usual case).
-__global__ void kernelWork(const float *x, float *y, int n, int iters, int variant)
+// Part 1: no data-dependent branch. Grid-stride so a small launch
+// (assignment.exe 512 256) still touches every element of a large N.
+__global__ void kernelBranchless(const float *x, float *y, int n, int iters)
 {
-    const int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= n)
-        return;
-
-    if (variant == kBranchless) {
+    const int stride = blockDim.x * gridDim.x;
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n; i += stride)
         y[i] = pathA(x[i], iters);
-    } else if (variant == kDivergent) {
+}
+
+// Part 2: same paths, condition splits every warp (odd/even lanes).
+__global__ void kernelDivergent(const float *x, float *y, int n, int iters)
+{
+    const int stride = blockDim.x * gridDim.x;
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n; i += stride) {
         if (i & 1)
             y[i] = pathA(x[i], iters);
         else
             y[i] = pathB(x[i], iters);
-    } else {
-        // warpSize is the CUDA built-in (Module 3A slide 5). Consecutive
-        // warps take opposite paths, so no warp is internally split.
+    }
+}
+
+// Part 2: same if/else, but the condition is constant on a warp.
+__global__ void kernelUniform(const float *x, float *y, int n, int iters)
+{
+    const int stride = blockDim.x * gridDim.x;
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n; i += stride) {
+        if ((i / warpSize) & 1)
+            y[i] = pathA(x[i], iters);
+        else
+            y[i] = pathB(x[i], iters);
+    }
+}
+
+// CPU counterparts. Launch geometry is not used; we just walk the array.
+static void cpuBranchless(const float *x, float *y, int n, int iters)
+{
+    for (int i = 0; i < n; ++i)
+        y[i] = pathA(x[i], iters);
+}
+
+static void cpuDivergent(const float *x, float *y, int n, int iters)
+{
+    for (int i = 0; i < n; ++i) {
+        if (i & 1)
+            y[i] = pathA(x[i], iters);
+        else
+            y[i] = pathB(x[i], iters);
+    }
+}
+
+static void cpuUniform(const float *x, float *y, int n, int iters, int warpSize)
+{
+    for (int i = 0; i < n; ++i) {
         if ((i / warpSize) & 1)
             y[i] = pathA(x[i], iters);
         else
@@ -86,22 +127,23 @@ __global__ void kernelWork(const float *x, float *y, int n, int iters, int varia
 
 static void cpuWork(const float *x, float *y, int n, int iters, int variant, int warpSize)
 {
-    for (int i = 0; i < n; ++i) {
-        if (variant == kBranchless) {
-            y[i] = pathA(x[i], iters);
-        } else if (variant == kDivergent) {
-            if (i & 1)
-                y[i] = pathA(x[i], iters);
-            else
-                y[i] = pathB(x[i], iters);
-        } else {
-            // Same grouping the GPU uses: warpSize consecutive indices.
-            if ((i / warpSize) & 1)
-                y[i] = pathA(x[i], iters);
-            else
-                y[i] = pathB(x[i], iters);
-        }
-    }
+    if (variant == kBranchless)
+        cpuBranchless(x, y, n, iters);
+    else if (variant == kDivergent)
+        cpuDivergent(x, y, n, iters);
+    else
+        cpuUniform(x, y, n, iters, warpSize);
+}
+
+typedef void (*GpuKern)(const float *, float *, int, int);
+
+static GpuKern gpuKern(Variant v)
+{
+    if (v == kBranchless)
+        return kernelBranchless;
+    if (v == kDivergent)
+        return kernelDivergent;
+    return kernelUniform;
 }
 
 static void printDeviceInfo()
@@ -161,10 +203,10 @@ static float timeCpu(const float *x, float *y, int n, int iters, int variant, in
     return static_cast<float>(ns / kCpuReps / 1.0e6);  // ms
 }
 
-static float timeGpuKernel(const float *dX, float *dY, int n, int iters,
-                           int variant, int blocks, int blockSize)
+static float timeGpuKernel(GpuKern k, const float *dX, float *dY, int n, int iters,
+                           int blocks, int blockSize)
 {
-    kernelWork<<<blocks, blockSize>>>(dX, dY, n, iters, variant);  // warm-up
+    k<<<blocks, blockSize>>>(dX, dY, n, iters);  // warm-up
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 
@@ -173,7 +215,7 @@ static float timeGpuKernel(const float *dX, float *dY, int n, int iters,
     CUDA_CHECK(cudaEventCreate(&t1));
     CUDA_CHECK(cudaEventRecord(t0));
     for (int r = 0; r < kGpuReps; ++r)
-        kernelWork<<<blocks, blockSize>>>(dX, dY, n, iters, variant);
+        k<<<blocks, blockSize>>>(dX, dY, n, iters);
     CUDA_CHECK(cudaEventRecord(t1));
     CUDA_CHECK(cudaEventSynchronize(t1));
     float ms = 0.0f;
@@ -183,11 +225,11 @@ static float timeGpuKernel(const float *dX, float *dY, int n, int iters,
     return ms / kGpuReps;
 }
 
-static float timeGpuEndToEnd(const float *hX, float *hY, float *dX, float *dY,
-                             int n, int iters, int variant, int blocks, int blockSize)
+static float timeGpuEndToEnd(GpuKern k, const float *hX, float *hY, float *dX, float *dY,
+                             int n, int iters, int blocks, int blockSize)
 {
     const size_t bytes = static_cast<size_t>(n) * sizeof(float);
-    kernelWork<<<blocks, blockSize>>>(dX, dY, n, iters, variant);
+    k<<<blocks, blockSize>>>(dX, dY, n, iters);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 
@@ -197,7 +239,7 @@ static float timeGpuEndToEnd(const float *hX, float *hY, float *dX, float *dY,
     CUDA_CHECK(cudaEventRecord(t0));
     for (int r = 0; r < kGpuReps; ++r) {
         CUDA_CHECK(cudaMemcpy(dX, hX, bytes, cudaMemcpyHostToDevice));
-        kernelWork<<<blocks, blockSize>>>(dX, dY, n, iters, variant);
+        k<<<blocks, blockSize>>>(dX, dY, n, iters);
         CUDA_CHECK(cudaMemcpy(hY, dY, bytes, cudaMemcpyDeviceToHost));
     }
     CUDA_CHECK(cudaEventRecord(t1));
@@ -211,7 +253,8 @@ static float timeGpuEndToEnd(const float *hX, float *hY, float *dX, float *dY,
 
 int main(int argc, char **argv)
 {
-    // Starter convention: total threads, then threads per block.
+    // Starter convention: total threads and threads per block. These
+    // size the GPU launch only. The CPU loop below never reads them.
     int totalThreads = (1 << 20);
     int blockSize = 256;
 
@@ -252,20 +295,26 @@ int main(int argc, char **argv)
         printf("The total number of threads will be rounded up to %d\n", totalThreads);
     }
 
-    const int n = totalThreads;
+    // Item 1: non-trivial data (1000s to millions) even when the
+    // required launch is only 512 threads. Item 3: CPU ignores the
+    // launch arguments and always walks this whole array.
+    const int n = (totalThreads > kMinElements) ? totalThreads : kMinElements;
     const int iters = kIters;
 
     printf("\n=== Launch ===\n");
-    printf("totalThreads              : %d\n", totalThreads);
+    printf("totalThreads (GPU launch) : %d\n", totalThreads);
     printf("blockSize                 : %d\n", blockSize);
     printf("numBlocks                 : %d\n", numBlocks);
-    printf("N (elements)              : %d\n", n);
+    printf("N (elements, CPU and GPU) : %d\n", n);
     printf("iters / element           : %d\n", iters);
     printf("GPU timing                : %d warm-up + avg of %d (cudaEvent)\n",
            kGpuWarmup, kGpuReps);
     printf("CPU timing                : %d warm-up + avg of %d (chrono)\n",
            kCpuWarmup, kCpuReps);
     printf("command                   : assignment.exe %d %d\n", totalThreads, blockSize);
+    if (n > totalThreads)
+        printf("note                      : GPU uses a grid-stride loop so %d threads cover N\n",
+               totalThreads);
 
     std::vector<float> hX(n), hYcpu(n), hYgpu(n);
     for (int i = 0; i < n; ++i)
@@ -282,7 +331,7 @@ int main(int argc, char **argv)
     const Variant variants[] = {kBranchless, kDivergent, kUniform};
     for (Variant v : variants) {
         cpuWork(hX.data(), hYcpu.data(), n, iters, v, prop.warpSize);
-        kernelWork<<<numBlocks, blockSize>>>(dX, dY, n, iters, v);
+        gpuKern(v)<<<numBlocks, blockSize>>>(dX, dY, n, iters);
         CUDA_CHECK(cudaGetLastError());
         CUDA_CHECK(cudaDeviceSynchronize());
         CUDA_CHECK(cudaMemcpy(hYgpu.data(), dY, bytes, cudaMemcpyDeviceToHost));
@@ -295,8 +344,6 @@ int main(int argc, char **argv)
                chk.sampleCpu, chk.sampleGpu);
     }
 
-    // Spot-check the first two elements of the divergent case by hand:
-    // x[0] takes pathB, x[1] takes pathA.
     const float expect0 = pathB(hX[0], iters);
     const float expect1 = pathA(hX[1], iters);
     cpuWork(hX.data(), hYcpu.data(), n, iters, kDivergent, prop.warpSize);
@@ -320,10 +367,11 @@ int main(int argc, char **argv)
     }
 
     for (Variant v : variants) {
+        const GpuKern k = gpuKern(v);
         const float cpuMs = timeCpu(hX.data(), hYcpu.data(), n, iters, v, prop.warpSize);
-        const float gpuMs = timeGpuKernel(dX, dY, n, iters, v, numBlocks, blockSize);
-        const float e2eMs = timeGpuEndToEnd(hX.data(), hYgpu.data(), dX, dY,
-                                            n, iters, v, numBlocks, blockSize);
+        const float gpuMs = timeGpuKernel(k, dX, dY, n, iters, numBlocks, blockSize);
+        const float e2eMs = timeGpuEndToEnd(k, hX.data(), hYgpu.data(), dX, dY,
+                                            n, iters, numBlocks, blockSize);
         const float speedup = gpuMs > 0.0f ? cpuMs / gpuMs : 0.0f;
         printf("%-36s  %12.4f  %14.4f  %12.4f  %10.2fx\n",
                variantName(v), cpuMs, gpuMs, e2eMs, speedup);

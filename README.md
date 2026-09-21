@@ -22,6 +22,7 @@ GPU output is checked against the CPU. Both sides are timed.
 | Performance comparison chart | `figures/fig_cpu_gpu_branching.png` |
 | Short text file on the results | `results-thoughts.txt` |
 | Previous-year `main` critique (item 5; that code is not included) | `critique-previous-year.md` |
+| Written report (cover sheet, assumptions, captioned figure, references) | `writeup.html` |
 
 Unedited run transcripts from the DGX Spark are in `proof/`.
 
@@ -48,11 +49,14 @@ Arguments match the course starter:
 
 | argv | meaning | default |
 | --- | --- | --- |
-| 1 | total number of threads (= N) | 1,048,576 |
+| 1 | GPU thread count (launch only) | 1,048,576 |
 | 2 | threads per block | 256 |
 
-If the total is not a multiple of the block size, the program rounds the
-total up and prints a warning.
+The CPU does not use those arguments. N is at least 1,048,576 so
+`assignment.exe 512 256` still processes a million elements (grid-stride
+loop). If the total thread count is not a multiple of the block size,
+the program rounds the launch up and prints a warning, same as the
+starter.
 
 ## Hardware these numbers came from
 
@@ -65,9 +69,9 @@ CPU results were bit-identical (`max_abs_err=0`):
 
 | variant | CPU (ms) | GPU kernel (ms) | GPU / branchless |
 | --- | ---: | ---: | ---: |
-| branchless | 1035.09 | 0.0884 | 1.00× |
-| divergent (`i & 1`) | 1035.53 | 0.1707 | 1.93× |
-| warp-uniform | 1035.58 | 0.0884 | 1.00× |
+| branchless | 1023.08 | 0.0883 | 1.00× |
+| divergent (`i & 1`) | 1021.66 | 0.1722 | 1.95× |
+| warp-uniform | 1023.70 | 0.0885 | 1.00× |
 
 The CPU does not care about the branch. The GPU pays almost 2× when the
 `if`/`else` splits a warp, and nothing extra when the same `if` is

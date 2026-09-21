@@ -12,10 +12,10 @@ global memory (bytes)     : 130663170048
 driver / runtime          : 13000 / 13000
 
 === Launch ===
-totalThreads              : 1048576
+totalThreads (GPU launch) : 1048576
 blockSize                 : 256
 numBlocks                 : 4096
-N (elements)              : 1048576
+N (elements, CPU and GPU) : 1048576
 iters / element           : 1024
 GPU timing                : 1 warm-up + avg of 10 (cudaEvent)
 CPU timing                : 1 warm-up + avg of 5 (chrono)
@@ -30,8 +30,8 @@ hand check x[0]->pathB, x[1]->pathA : PASS  err0=0 err1=0
 === Timing (milliseconds; GPU kernel excludes H2D/D2H) ===
 variant                                     cpu_ms   gpu_kernel_ms    gpu_e2e_ms     cpu/gpu
 -------                                     ------   -------------    ----------     -------
-branchless                               1035.0905          0.0884        0.2395    11704.93x
-divergent (i & 1)                        1035.5291          0.1707        0.3227     6065.66x
-warp-uniform (i / warpSize) & 1          1035.5822          0.0884        0.2389    11709.64x
+branchless                               1023.0758          0.0883        0.2384    11581.22x
+divergent (i & 1)                        1021.6631          0.1722        0.3217     5933.06x
+warp-uniform (i / warpSize) & 1          1023.6998          0.0885        0.2392    11572.77x
 
 All correctness checks passed.

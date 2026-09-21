@@ -4,6 +4,15 @@ Thoughts on the CPU / GPU branching measurements
 20 September 2026
 Hardware: DGX Spark, NVIDIA GB10, compute capability 12.1, CUDA 13.0
 
+Assumptions. argv[1] and argv[2] size the GPU launch only (course
+starter). The CPU never uses them; it always walks the whole array.
+N is at least 1,048,576 so the required assignment.exe 512 256 run
+still processes "1000s to millions" of elements (a grid-stride loop
+covers N with those 512 threads). Times are cudaEvent around the
+kernel after a warm-up, milliseconds, average of 10 GPU / 5 CPU
+runs. Path A and path B are the same length (1,024 FMAs), so a fully
+split warp should cost about 2x.
+
 I ran the same Horner-style loop on the CPU and the GPU, first with no
 data-dependent branch, then with an if/else that picks one of two equal-
 length paths. The only thing that changed between the last two GPU
@@ -13,44 +22,67 @@ other). The CPU used the same conditions.
 
 Two things jumped out.
 
-First, on the GPU the intra-warp split costs almost exactly 2×. At one
-million elements the branchless and warp-uniform kernels both took
-0.0884 ms; the odd/even kernel took 0.1707 ms (1.93×). At four million
-elements the same three numbers were 0.3389 ms, 0.3411 ms, and
-0.6700 ms (1.98×). That is what Lecture 3A said should happen: a warp
-has one instruction stream, so when its lanes disagree it runs the if
-body and then the else body, and here those two bodies are the same
-length. NVIDIA’s Best Practices Guide 13.0 §13.1 gives the same
-workaround I used for the third kernel — write the condition in terms of
-(threadIdx / warpSize) so that no warp is internally split — and on this
-GPU that workaround brought the time all the way back to the branchless
-baseline. The 2017 slide’s “half-warp boundary” advice is the same idea
-at a granularity this chip no longer discounts; aligning to a whole warp
-is what actually helped.
+First, on the GPU the intra-warp split costs almost exactly 2x. At one
+million elements with a full launch (1,048,576 threads, 256 per block)
+the branchless and warp-uniform kernels took 0.0883 ms and 0.0885 ms;
+the odd/even kernel took 0.1722 ms (1.95x). At four million elements the
+same three numbers were 0.3410 ms, 0.3443 ms, and 0.6743 ms (1.98x).
+That is what Lecture 3A said should happen: a warp has one instruction
+stream, so when its lanes disagree it runs the if body and then the else
+body, and here those two bodies are the same length. NVIDIA's Best
+Practices Guide 13.0 section 13.1 gives the same workaround I used for
+the third kernel — write the condition in terms of (threadIdx / WSIZE)
+so that no warp is internally split — and on this GPU that workaround
+brought the time all the way back to the branchless baseline. The 2017
+slide's "half-warp boundary" advice is the same idea at a granularity
+this chip no longer discounts; aligning to a whole warp is what actually
+helped.
 
-Second, the CPU barely noticed. Across the three variants its time moved
-by a few tenths of a millisecond on a one-second run. A CPU thread has
-its own program counter and a branch predictor, and i & 1 is the most
-predictable-looking “random” condition you can write (it alternates
-every iteration, which a predictor learns immediately). So the same
-source-level if/else is a GPU-only tax. That is why the prompt asked
-for both a CPU version and a GPU version of the branched code: if I had
-only timed two GPU kernels I could have blamed “branches are slow,”
-which is not what the data say.
+The required assignment.exe 512 256 run is the same 1,048,576 elements
+but only two blocks. The GPU is slower in absolute time (4.06 ms
+branchless vs 0.088 ms with 4,096 blocks) because 48 SMs are mostly
+idle — Lecture 3D's "allocate large numbers of threads." The *ratio*
+is unchanged: 8.00 / 4.06 = 1.97x. Divergence is a property of the
+warp, not of how many blocks you launched.
 
-A few caveats so I do not over-read the speedups. The GPU kernel times
-exclude host-to-device copies; the end-to-end column is still hundreds
-of times faster than the CPU because this loop does 1,024 floating-point
-operations per element and the arrays are only a few megabytes. A
-memory-bound kernel (a plain vector add) would not look like this. The
-required assignment.exe 512 256 run is too small for a reliable GPU
-ratio — a few microseconds, comparable to launch overhead — which is
-why the chart and the numbers above come from the million-element
-runs. And the ~10,000× CPU-to-GPU factor is real for this kernel on
-this box, but it is also the product of comparing one CPU thread to
-48 SMs; I am not claiming that factor for every program.
+Second, the CPU barely noticed. Across the three variants its time
+moved by a couple of milliseconds on a one-second run. A CPU thread
+has its own program counter and a branch predictor, and i & 1 is the
+most predictable-looking "random" condition you can write (it
+alternates every iteration, which a predictor learns immediately). So
+the same source-level if/else is a GPU-only tax. That is why the
+prompt asked for both a CPU version and a GPU version of the branched
+code: if I had only timed two GPU kernels I could have blamed
+"branches are slow," which is not what the data say.
 
-The practical takeaway I am keeping: prefer a branch whose condition is
-constant on a warp, or no branch at all. If the algorithm really needs
-an odd/even split, re-pack the data so that a whole warp is odd or a
-whole warp is even, rather than interleaving the two inside 32 lanes.
+Analogy. A CPU thread is one person reading a choose-your-own-adventure
+book. A warp is 32 people sharing one reader. If they disagree about
+which page to turn to, the reader has to read both pages aloud. Seat
+them so each group of 32 wants the same page, and you are back to one
+page.
+
+Caveats. GPU kernel times exclude host-to-device copies. End-to-end is
+still far ahead of the CPU because this loop does 1,024 floating-point
+operations per element and the arrays are a few megabytes. A memory-
+bound kernel (a plain vector add) would not look like this. The
+~10,000x CPU-to-GPU factor on the full launch is this kernel, one CPU
+thread, and 48 SMs; I am not claiming that factor for every program.
+The number I trust as a design rule is the GPU-to-itself 2x when a
+warp splits.
+
+Takeaway. Prefer a branch whose condition is constant on a warp, or no
+branch at all. If the algorithm really needs an odd/even split, re-pack
+the data so that a whole warp is odd or a whole warp is even, rather
+than interleaving the two inside 32 lanes.
+
+References
+1. Pascale, C. T. Module 3 Lecture 3A — CUDA Warps and Branching.
+   EN.605.617 slides, PDF dated 2017-09-13. Slides 5–6.
+2. Pascale, C. T. Module 3 Lecture 3D — CUDA Blocks and Grids.
+   EN.605.617 slides, PDF dated 2017-09-13. Slides 5–6 (index
+   arithmetic; 192 or 256 threads per block; large thread counts).
+3. NVIDIA. CUDA C++ Best Practices Guide, CUDA Toolkit 13.0.1, §13.1
+   "Branching and Divergence."
+   https://docs.nvidia.com/cuda/archive/13.0.1/cuda-c-best-practices-guide/index.html#branching-and-divergence
+4. NVIDIA. CUDA Programming Guide, SIMT Execution Model (§3.2.2.1).
+   https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/advanced-kernel-programming.html
