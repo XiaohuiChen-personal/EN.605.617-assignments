@@ -1,12 +1,17 @@
-# Consumed by the course assignment runner (assignment_build_execution).
+# Course assignment runner (assignment_build_execution).
 # folder is relative to this file and must contain build.sh / run.sh.
 folder: module3
 
-# One build: `make` with no arguments, producing assignment.exe.
+# `make` with no arguments → assignment.exe
 build: {}
 
-# Two independent runs. The required smoke test is 512 256; the second
-# uses the starter defaults (1 << 20 threads, 256 threads per block).
+# Rubric: two additional thread counts and two additional block sizes,
+# all from command-line arguments (not hard-coded launches), and all
+# runs captured. The first line is the required assignment.exe 512 256.
+# Every block size is >= 64 (rubric: "at least 64 threads in one block").
 run:
-  - [512, 256]
-  - []
+  - [512, 256]        # required invocation
+  - [65536, 256]      # additional thread count
+  - [1048576, 256]    # additional thread count
+  - [1048576, 128]    # additional block size
+  - [1048576, 64]     # additional block size (rubric minimum of 64)

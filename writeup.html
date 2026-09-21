@@ -199,15 +199,16 @@
 <div class="running">
   <span>Xiaohui Chen</span>
   <span>EN.605.617.81 · CUDA Threads and Blocks</span>
-  <span>page 2 of 8</span>
+  <span>page 2 of 9</span>
 </div>
 
 <nav class="toc">
   <h2>Contents</h2>
   <ol>
     <li><a href="#part1">Part 1 — Branchless CPU and GPU</a></li>
+    <li><a href="#launches">Part 2b — Extra thread counts and block sizes</a></li>
     <li><a href="#part2">Part 2 — Conditional branching on CPU and GPU</a></li>
-    <li><a href="#critique">Part 3 — Previous-year <code>main</code></a></li>
+    <li><a href="#critique">Part 3 — Previous-year <code>main</code> (stretch)</a></li>
     <li><a href="#takeaways">Takeaways</a></li>
     <li><a href="#refs">References</a></li>
   </ol>
@@ -239,25 +240,66 @@
 <p>Correctness is a pairwise compare of the CPU array and the GPU array with tolerance \(10^{-4}\). On this machine the error was <strong>0</strong> at every size I ran: the values are bit-identical. A hand check of \(y_0\) after 1,024 iterations of path A is \(1078.328369\) on both sides.</p>
 
 <table>
-  <caption>Table 1 — Branchless CPU vs GPU. GPU kernel time excludes copies. Source: <code>proof/run_512_256.txt</code>, <code>proof/run_1048576.txt</code>, <code>proof/run_4194304.txt</code>.</caption>
+  <caption>Table 1 — Branchless CPU vs GPU. GPU kernel time excludes copies. Source: <code>proof/run_512_256.txt</code>, <code>proof/run_1048576_256.txt</code>, <code>proof/run_4194304.txt</code>.</caption>
   <thead>
     <tr><th>Launch</th><th class="num">\(N\)</th><th class="num">CPU (ms)</th><th class="num">GPU kernel (ms)</th><th class="num">GPU end-to-end (ms)</th><th class="num">CPU / GPU kernel</th></tr>
   </thead>
   <tbody>
-    <tr><td><code>512 256</code> (stride over \(N\))</td><td class="num">1,048,576</td><td class="num">1035.63</td><td class="num">4.0558</td><td class="num">4.1980</td><td class="num">255×</td></tr>
-    <tr><td>default <code>1&lt;&lt;20</code>, 256</td><td class="num">1,048,576</td><td class="num">1023.08</td><td class="num">0.0883</td><td class="num">0.2384</td><td class="num">11,581×</td></tr>
+    <tr><td><code>512 256</code> (stride over \(N\))</td><td class="num">1,048,576</td><td class="num">1011.49</td><td class="num">4.0433</td><td class="num">4.1948</td><td class="num">250×</td></tr>
+    <tr><td><code>1048576 256</code></td><td class="num">1,048,576</td><td class="num">1035.59</td><td class="num">0.0886</td><td class="num">0.2392</td><td class="num">11,691×</td></tr>
     <tr><td><code>4194304 256</code></td><td class="num">4,194,304</td><td class="num">4144.50</td><td class="num">0.3410</td><td class="num">0.9076</td><td class="num">12,155×</td></tr>
   </tbody>
 </table>
 
 <h3>Conclusions / discussion</h3>
-<p>The required <code>assignment.exe 512 256</code> run builds, launches two blocks of 256 threads, and still processes \(N = 1{,}048{,}576\) elements (grid-stride). It matches the CPU bit-for-bit. Those 512 threads occupy only a couple of the 48 SMs, so the kernel is about 46× slower than the same \(N\) launched with 1,048,576 threads (4.06 ms vs 0.088 ms). That is Lecture 3D’s utilization point, not a timing bug. The million-thread and four-million-thread rows are the ones that keep the GPU busy. There the GPU kernel is about four orders of magnitude faster than one CPU thread, which is what you would hope for a long FMA loop spread over 48 SMs. End-to-end is slower than the kernel (copies of 4–16 MiB) and still far ahead of the CPU, because 1,024 operations per element dominate a few megabytes of traffic on this box. I would not expect the same ratio from a memory-bound kernel.</p>
+<p>The required <code>assignment.exe 512 256</code> run builds, launches two blocks of 256 threads, and still processes \(N = 1{,}048{,}576\) elements (grid-stride). It matches the CPU bit-for-bit. Those 512 threads occupy only a couple of the 48 SMs, so the kernel is about 46× slower than the same \(N\) launched with 1,048,576 threads (4.0433 ms vs 0.0886 ms). That is Lecture 3D’s utilization point, not a timing bug. The million-thread and four-million-thread rows are the ones that keep the GPU busy. There the GPU kernel is about four orders of magnitude faster than one CPU thread, which is what you would hope for a long FMA loop spread over 48 SMs. End-to-end is slower than the kernel (copies of 4–16 MiB) and still far ahead of the CPU, because 1,024 operations per element dominate a few megabytes of traffic on this box. I would not expect the same ratio from a memory-bound kernel.</p>
 <p>The launch arithmetic is the Module 3 point: 1,048,576 threads at 256 per block is 4,096 blocks, which is many more blocks than SMs. That is the intended state — the block dispatcher keeps the 48 SMs busy <a href="#ref2">[2]</a>.</p>
 
 <div class="running">
   <span>Xiaohui Chen</span>
   <span>EN.605.617.81 · CUDA Threads and Blocks</span>
-  <span>page 3 of 8</span>
+  <span>page 3 of 9</span>
+</div>
+
+<h2 id="launches">Part 2b — Two additional thread counts and two additional block sizes</h2>
+
+<h3>Problem statement</h3>
+<p>The Module 03 Assignment Rubric awards points for executing the program with two additional thread counts and two additional block sizes, all from external command-line arguments, and for capturing every run. Thread count and block size must both be variable from the CLI <a href="#ref9">[9]</a>.</p>
+
+<h3>Assumptions</h3>
+<ul>
+  <li>The required invocation <code>512 256</code> is the baseline. Additional thread counts are 65,536 and 1,048,576. Additional block sizes are 128 and 64. Every block size is at least 64, the rubric minimum.</li>
+  <li>These five launches are listed in <code>assignment_config.yaml</code> so the course Linux runner captures them; they are not hard-coded inside <code>main</code>.</li>
+  <li>\(N\) stays \(1{,}048{,}576\) on every row (grid-stride when the launch is smaller), so the comparison is the launch, not the data size.</li>
+</ul>
+
+<h3>Computations</h3>
+<table>
+  <caption>Table 3 — Five command-line launches, same \(N = 1{,}048{,}576\). GPU times are the branchless and divergent kernels. Source: <code>proof/run_512_256.txt</code>, <code>proof/run_65536_256.txt</code>, <code>proof/run_1048576_256.txt</code>, <code>proof/run_1048576_128.txt</code>, <code>proof/run_1048576_64.txt</code>.</caption>
+  <thead>
+    <tr><th>Command</th><th class="num">Threads</th><th class="num">Block</th><th class="num">Blocks</th><th class="num">GPU branchless (ms)</th><th class="num">GPU divergent (ms)</th><th class="num">div / branchless</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>512 256</code></td><td class="num">512</td><td class="num">256</td><td class="num">2</td><td class="num">4.0433</td><td class="num">7.9973</td><td class="num">1.98×</td></tr>
+    <tr><td><code>65536 256</code></td><td class="num">65,536</td><td class="num">256</td><td class="num">256</td><td class="num">0.1069</td><td class="num">0.2077</td><td class="num">1.94×</td></tr>
+    <tr><td><code>1048576 256</code></td><td class="num">1,048,576</td><td class="num">256</td><td class="num">4,096</td><td class="num">0.0886</td><td class="num">0.1723</td><td class="num">1.95×</td></tr>
+    <tr><td><code>1048576 128</code></td><td class="num">1,048,576</td><td class="num">128</td><td class="num">8,192</td><td class="num">0.0883</td><td class="num">0.1718</td><td class="num">1.95×</td></tr>
+    <tr><td><code>1048576 64</code></td><td class="num">1,048,576</td><td class="num">64</td><td class="num">16,384</td><td class="num">0.0884</td><td class="num">0.1722</td><td class="num">1.95×</td></tr>
+  </tbody>
+</table>
+
+<figure>
+  <img src="figures/fig_launch_configs.png" alt="Two-panel bar chart. Left: GPU kernel time drops from 4.04 ms at 512 threads to 0.11 ms at 65,536 and 0.089 ms at 1,048,576. Right: at a full million-thread launch, block sizes 256, 128, and 64 are essentially the same.">
+  <figcaption>Figure 2 — The five captured CLI launches. Left: extra thread counts at 256 threads/block. Right: extra block sizes at 1,048,576 threads. Numbers are the branchless GPU kernel column of Table 3.</figcaption>
+</figure>
+
+<h3>Conclusions / discussion</h3>
+<p>Going from 512 threads to 65,536 occupies the GPU; going on to 1,048,576 is a small further drop. Once the grid is large, 64, 128, and 256 threads per block are interchangeable for this kernel. The \(2\times\) divergence tax is the same in every transcript, which is the point of capturing all five runs rather than only the required <code>512 256</code>.</p>
+
+<div class="running">
+  <span>Xiaohui Chen</span>
+  <span>EN.605.617.81 · CUDA Threads and Blocks</span>
+  <span>page 4 of 9</span>
 </div>
 
 <h2 id="part2">Part 2 — The same algorithm with a conditional branch</h2>
@@ -287,14 +329,14 @@
 <p>Correctness again compared every element to the CPU. Error was 0. A hand check of the divergent case confirmed the wiring: \(x_0\) takes path B and lands on \(-973.263611\); \(x_1\) takes path A and lands on the Part 1 value. Both sides agreed.</p>
 
 <table>
-  <caption>Table 2 — All three variants. GPU “rel.” is kernel time divided by the branchless kernel at the same \(N\). Source: the same three proof transcripts as Table 1.</caption>
+  <caption>Table 2 — All three variants. GPU “rel.” is kernel time divided by the branchless kernel at the same \(N\). Source: <code>proof/run_1048576_256.txt</code> and <code>proof/run_4194304.txt</code>.</caption>
   <thead>
     <tr><th>\(N\)</th><th>Variant</th><th class="num">CPU (ms)</th><th class="num">GPU kernel (ms)</th><th class="num">GPU rel.</th><th class="num">CPU rel.</th></tr>
   </thead>
   <tbody>
-    <tr><td>1,048,576</td><td>branchless</td><td class="num">1023.08</td><td class="num">0.0883</td><td class="num">1.00×</td><td class="num">1.000</td></tr>
-    <tr><td>1,048,576</td><td>divergent <code>i &amp; 1</code></td><td class="num">1021.66</td><td class="num">0.1722</td><td class="num">1.95×</td><td class="num">0.999</td></tr>
-    <tr><td>1,048,576</td><td>warp-uniform</td><td class="num">1023.70</td><td class="num">0.0885</td><td class="num">1.00×</td><td class="num">1.001</td></tr>
+    <tr><td>1,048,576</td><td>branchless</td><td class="num">1035.59</td><td class="num">0.0886</td><td class="num">1.00×</td><td class="num">1.000</td></tr>
+    <tr><td>1,048,576</td><td>divergent <code>i &amp; 1</code></td><td class="num">1034.13</td><td class="num">0.1723</td><td class="num">1.95×</td><td class="num">0.999</td></tr>
+    <tr><td>1,048,576</td><td>warp-uniform</td><td class="num">1036.02</td><td class="num">0.0883</td><td class="num">1.00×</td><td class="num">1.000</td></tr>
     <tr><td>4,194,304</td><td>branchless</td><td class="num">4144.50</td><td class="num">0.3410</td><td class="num">1.00×</td><td class="num">1.000</td></tr>
     <tr><td>4,194,304</td><td>divergent <code>i &amp; 1</code></td><td class="num">4139.33</td><td class="num">0.6743</td><td class="num">1.98×</td><td class="num">0.999</td></tr>
     <tr><td>4,194,304</td><td>warp-uniform</td><td class="num">4145.74</td><td class="num">0.3443</td><td class="num">1.01×</td><td class="num">1.000</td></tr>
@@ -309,11 +351,11 @@
 <div class="running">
   <span>Xiaohui Chen</span>
   <span>EN.605.617.81 · CUDA Threads and Blocks</span>
-  <span>page 4 of 8</span>
+  <span>page 5 of 9</span>
 </div>
 
 <h3>Conclusions / discussion</h3>
-<p>The GPU result is the Module 3 lecture, measured. A warp issues one instruction at a time <a href="#ref5">[5]</a>. When 16 lanes want path A and 16 want path B, the warp runs both loops and masks off the idle half; with equal-length loops the time is the sum, which is why the ratio sits at 1.95× and 1.98× rather than “a bit slower.” The same 2× shows up on the required 512-thread launch (8.00 / 4.06 = 1.97×), so the tax is the split warp, not the block count. When the same <code>if</code> is written so that a whole warp agrees, the second loop is never issued for that warp, and the time falls back on the branchless line. Lecture 3A’s half-warp wording is the 2017 version of that idea; on compute capability 12.1 the unit that has to agree is the full 32-thread warp.</p>
+<p>The GPU result is the Module 3 lecture, measured. A warp issues one instruction at a time <a href="#ref5">[5]</a>. When 16 lanes want path A and 16 want path B, the warp runs both loops and masks off the idle half; with equal-length loops the time is the sum, which is why the ratio sits at 1.95× and 1.98× rather than “a bit slower.” The same 2× shows up on the required 512-thread launch (7.9973 / 4.0433 = 1.98×), so the tax is the split warp, not the block count. When the same <code>if</code> is written so that a whole warp agrees, the second loop is never issued for that warp, and the time falls back on the branchless line. Lecture 3A’s half-warp wording is the 2017 version of that idea; on compute capability 12.1 the unit that has to agree is the full 32-thread warp.</p>
 <p>The CPU result is the reason the prompt asked for both implementations. The same source-level <code>if (i &amp; 1)</code> moves the host time by a fraction of a millisecond on a one-second run. A CPU thread has its own program counter and a branch predictor; alternating odd/even is learned immediately. So “branches are expensive” is not a property of the <code>if</code> token. It is a property of <em>one instruction stream shared by 32 lanes</em>.</p>
 <p>An analogy I used on myself: a CPU thread is a person reading a choose-your-own-adventure book alone. A warp is 32 people sharing one reader. If they disagree about which page to turn to, the reader has to read both pages aloud. If you seat the people so that each group of 32 wants the same page, you are back to one page.</p>
 <p>I am not reading the 10,000× CPU-to-GPU column as a general GPU-is-always-that-fast claim. It is this kernel, this iteration count, this one CPU thread, this GPU. The number that I trust as a design rule is the <em>GPU-to-itself</em> 2× when a warp splits.</p>
@@ -326,7 +368,7 @@
 <div class="running">
   <span>Xiaohui Chen</span>
   <span>EN.605.617.81 · CUDA Threads and Blocks</span>
-  <span>page 5 of 8</span>
+  <span>page 6 of 9</span>
 </div>
 
 <h2 id="critique">Part 3 — The previous-year <code>main</code> (prompt item 5)</h2>
@@ -357,12 +399,12 @@
 <div class="running">
   <span>Xiaohui Chen</span>
   <span>EN.605.617.81 · CUDA Threads and Blocks</span>
-  <span>page 6 of 8</span>
+  <span>page 7 of 9</span>
 </div>
 
 <h2 id="takeaways">Takeaways</h2>
 <ul>
-  <li><code>assignment.exe 512 256</code> builds with <code>make</code>, runs, processes \(N = 10^6\) via grid-stride, and matches the CPU. A full 1,048,576-thread launch of the same \(N\) is the utilization comparison.</li>
+  <li><code>assignment.exe 512 256</code> builds with <code>make</code>, runs, processes \(N = 10^6\) via grid-stride, and matches the CPU. Two extra thread counts and two extra block sizes are the same program with different argv, all captured in <code>proof/</code>.</li>
   <li>The branchless kernel is the same recurrence on both sides and is bit-identical.</li>
   <li>An <code>if</code> that splits a warp costs this GPU almost \(2\times\) when the two sides are the same length. The same <code>if</code> aligned to <code>warpSize</code> costs nothing extra. The CPU does not care either way.</li>
   <li>Time kernels with device events and a synchronize, not with a host clock around an asynchronous launch. Check every CUDA call. Do not overwrite the array you still need to verify.</li>
@@ -371,7 +413,7 @@
 <div class="running">
   <span>Xiaohui Chen</span>
   <span>EN.605.617.81 · CUDA Threads and Blocks</span>
-  <span>page 7 of 8</span>
+  <span>page 8 of 9</span>
 </div>
 
 <h2 id="refs">References</h2>
@@ -384,14 +426,15 @@
   <li id="ref5">NVIDIA. <cite>CUDA Programming Guide</cite>, “SIMT Execution Model” (§3.2.2.1 in the current guide). A warp is 32 threads; it executes one common instruction at a time; if lanes diverge, each taken path is executed with the other lanes disabled; independent thread scheduling from compute capability 7.0 does not remove that cost. <a href="https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/advanced-kernel-programming.html">https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/advanced-kernel-programming.html</a></li>
   <li id="ref6">NVIDIA. <cite>CUDA Refresher: The CUDA Programming Model</cite>, NVIDIA Technical Blog, 2020. Thread → CUDA core, block → SM, grid → GPU. <a href="https://developer.nvidia.com/blog/cuda-refresher-cuda-programming-model/">https://developer.nvidia.com/blog/cuda-refresher-cuda-programming-model/</a></li>
   <li id="ref7">Johns Hopkins University. <cite>EN.605.617 section 81 Syllabus</cite> (HelioCampus export) and the Module 3 assignment prompt <cite>CUDA Threads and Blocks Assignment</cite> (course EPUB, 2026).</li>
-  <li id="ref8">This assignment’s own runs: <code>module3/assignment.cu</code> compiled and executed on the DGX Spark on 2026-09-20. Unedited transcripts in <code>proof/run_512_256.txt</code>, <code>proof/run_1048576.txt</code>, <code>proof/run_4194304.txt</code>.</li>
+  <li id="ref8">This assignment’s own runs: <code>module3/assignment.cu</code> compiled and executed on the DGX Spark on 2026-09-20. Transcripts in <code>proof/run_512_256.txt</code>, <code>proof/run_65536_256.txt</code>, <code>proof/run_1048576_256.txt</code>, <code>proof/run_1048576_128.txt</code>, <code>proof/run_1048576_64.txt</code>, and <code>proof/run_4194304.txt</code>.</li>
+  <li id="ref9">Johns Hopkins University. <cite>Module 03 Assignment Rubric</cite>, attached to <cite>CUDA Threads and Blocks Assignment</cite> (Canvas PDF, 7 pp., accessed 2026-09-20). Rows for additional thread counts, additional block sizes, CLI variation of both, stretch problem, code quality, <code>assignment_config.yaml</code>, and Linux <code>build.sh</code>/<code>run.sh</code>.</li>
 </ol>
 </footer>
 
 <div class="running">
   <span>Xiaohui Chen</span>
   <span>EN.605.617.81 · CUDA Threads and Blocks</span>
-  <span>page 8 of 8</span>
+  <span>page 9 of 9</span>
 </div>
 
 <h2 id="appendix">Appendix — How the program was run</h2>
@@ -399,9 +442,11 @@
 cd module3
 make
 ./assignment.exe 512 256
-./assignment.exe
-./assignment.exe 4194304 256</code></pre>
-<p>Every CUDA call goes through <code>CUDA_CHECK</code>. The process exits non-zero if any correctness group fails. On 2026-09-20 all three commands printed <code>All correctness checks passed.</code></p>
+./assignment.exe 65536 256
+./assignment.exe 1048576 256
+./assignment.exe 1048576 128
+./assignment.exe 1048576 64</code></pre>
+<p>Every CUDA call goes through <code>CUDA_CHECK</code>. The process exits non-zero if any correctness group fails. On 2026-09-20 all five commands printed <code>All correctness checks passed.</code></p>
 
 </main>
 </body>

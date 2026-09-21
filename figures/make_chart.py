@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-"""Bar charts from the DGX Spark runs of 2026-09-20. Numbers are copied
-from proof/run_1048576.txt and proof/run_4194304.txt, not invented."""
+"""Charts from the DGX Spark runs of 2026-09-20. Numbers are copied
+from the proof/ transcripts, not invented."""
 
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-OUT = Path(__file__).resolve().parent / "fig_cpu_gpu_branching.png"
+HERE = Path(__file__).resolve().parent
+OUT = HERE / "fig_cpu_gpu_branching.png"
+OUT_LAUNCH = HERE / "fig_launch_configs.png"
 
 # gpu_kernel_ms, cpu_ms
 n1 = {
     "label": "N = 1,048,576",
-    "gpu": [0.0883, 0.1722, 0.0885],
-    "cpu": [1023.0758, 1021.6631, 1023.6998],
+    "gpu": [0.0886, 0.1723, 0.0883],
+    "cpu": [1035.5934, 1034.1339, 1036.0161],
 }
 n4 = {
     "label": "N = 4,194,304",
@@ -82,3 +84,48 @@ fig.suptitle(
 )
 fig.savefig(OUT, dpi=160)
 print(f"wrote {OUT}")
+
+# Second figure: the five CLI launches the rubric asked to capture.
+# Same N = 1,048,576; only the launch (thread count, block size) changes.
+# Source: proof/run_512_256.txt, run_65536_256.txt, run_1048576_{256,128,64}.txt
+thread_labels = ["512\n× 256", "65,536\n× 256", "1,048,576\n× 256"]
+thread_gpu = [4.0433, 0.1069, 0.0886]
+block_labels = ["256 / block\n(4,096 blocks)", "128 / block\n(8,192 blocks)", "64 / block\n(16,384 blocks)"]
+block_gpu = [0.0886, 0.0883, 0.0884]
+
+fig2, axes2 = plt.subplots(1, 2, figsize=(9.2, 4.2), layout="constrained")
+ax = axes2[0]
+bars = ax.bar(thread_labels, thread_gpu, color="#0f4c81")
+ax.set_ylabel("GPU kernel time, branchless (ms)")
+ax.set_title("Extra thread counts (block size 256)")
+ax.set_ylim(0, 4.8)
+for rect in bars:
+    ax.text(
+        rect.get_x() + rect.get_width() / 2,
+        rect.get_height() + 0.08,
+        f"{rect.get_height():.3f}",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+ax = axes2[1]
+bars = ax.bar(block_labels, block_gpu, color="#7eb6e0")
+ax.set_ylabel("GPU kernel time, branchless (ms)")
+ax.set_title("Extra block sizes (1,048,576 threads)")
+ax.set_ylim(0, 0.14)
+for rect in bars:
+    ax.text(
+        rect.get_x() + rect.get_width() / 2,
+        rect.get_height() + 0.003,
+        f"{rect.get_height():.4f}",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+fig2.suptitle(
+    "EN.605.617 Module 3 — five command-line launches, same N = 1,048,576\n"
+    "DGX Spark, NVIDIA GB10, CUDA 13.0; captured 20 September 2026",
+    fontsize=10,
+)
+fig2.savefig(OUT_LAUNCH, dpi=160)
+print(f"wrote {OUT_LAUNCH}")

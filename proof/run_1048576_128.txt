@@ -1,4 +1,4 @@
-# assignment.exe 512 256
+# assignment.exe 1048576 128
 # Built and run 2026-09-20 on DGX Spark
 # nvcc V13.0.88, -arch=native (sm_121), driver 580.159.03
 === Device ===
@@ -12,15 +12,14 @@ global memory (bytes)     : 130663170048
 driver / runtime          : 13000 / 13000
 
 === Launch ===
-totalThreads (GPU launch) : 512
-blockSize                 : 256
-numBlocks                 : 2
+totalThreads (GPU launch) : 1048576
+blockSize                 : 128
+numBlocks                 : 8192
 N (elements, CPU and GPU) : 1048576
 iters / element           : 1024
 GPU timing                : 1 warm-up + avg of 10 (cudaEvent)
 CPU timing                : 1 warm-up + avg of 5 (chrono)
-command                   : assignment.exe 512 256
-note                      : GPU uses a grid-stride loop so 512 threads cover N
+command                   : assignment.exe 1048576 128
 
 === Correctness (GPU vs CPU, tol 1e-4) ===
 branchless                           : PASS  mismatches=0  max_abs_err=0  y[0] cpu=1078.328369 gpu=1078.328369
@@ -31,8 +30,8 @@ hand check x[0]->pathB, x[1]->pathA : PASS  err0=0 err1=0
 === Timing (milliseconds; GPU kernel excludes H2D/D2H) ===
 variant                                     cpu_ms   gpu_kernel_ms    gpu_e2e_ms     cpu/gpu
 -------                                     ------   -------------    ----------     -------
-branchless                               1011.4917          4.0433        4.1948      250.17x
-divergent (i & 1)                        1010.3624          7.9973        8.1769      126.34x
-warp-uniform (i / warpSize) & 1          1011.4510          4.1278        4.3039      245.03x
+branchless                               1023.2058          0.0883        0.2376    11586.05x
+divergent (i & 1)                        1021.9499          0.1718        0.3212     5948.43x
+warp-uniform (i / warpSize) & 1          1024.3542          0.0882        0.2392    11609.57x
 
 All correctness checks passed.

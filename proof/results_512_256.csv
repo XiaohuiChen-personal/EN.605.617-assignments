@@ -1,0 +1,4 @@
+variant,n,total_threads,block_size,num_blocks,iters,cpu_ms,gpu_kernel_ms,gpu_e2e_ms,speedup
+"branchless",1048576,512,256,2,1024,1011.491699,4.043283,4.194755,250.165939
+"divergent (i & 1)",1048576,512,256,2,1024,1010.362366,7.997341,8.176915,126.337288
+"warp-uniform (i / warpSize) & 1",1048576,512,256,2,1024,1011.450989,4.127843,4.303949,245.031372

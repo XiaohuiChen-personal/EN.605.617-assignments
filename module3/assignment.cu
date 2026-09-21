@@ -3,16 +3,24 @@
 //
 // Argument handling follows the starter assignment.cu provided in the
 // official course repository (JHU-EP-Intro2GPU/EN605.617, module3/):
-//   argv[1] = total number of threads  (default 1 << 20)
-//   argv[2] = threads per block        (default 256)
+//   argv[1] = total number of threads  (default kDefaultTotalThreads)
+//   argv[2] = threads per block        (default kDefaultBlockSize)
 //   ./assignment.exe 512 256
 //
 // Those two numbers are the GPU *launch*, not the data size. The CPU
 // does not use them (the prompt: you do not have much control over
-// host threading). The array length is at least 1,048,576 so the
+// host threading). The array length is at least kMinElements so the
 // required 512 256 invocation still processes "1000s to millions" of
 // elements; extra threads, if requested, enlarge N. The GPU covers N
 // with a grid-stride loop.
+//
+// Rubric mapping (Module 03 Assignment Rubric):
+//   * kernelBranchless + launch >= 64 threads/block  — GPU, simple op
+//   * cpuBranchless on the same N                    — CPU, same data
+//   * kernelDivergent / kernelUniform                — GPU, >= 1 branch
+//   * cpuDivergent / cpuUniform                      — CPU, >= 1 branch
+//   * argv[1] / argv[2]                              — extra thread
+//     counts and block sizes from the command line
 //
 // Part 1: the same branchless Horner-style iteration on CPU and GPU
 //         (no data-dependent if/else in that kernel or host loop).
@@ -27,25 +35,39 @@
 #include <cstdlib>
 #include <vector>
 
-static const int kMinElements = 1 << 20;  // item 1: thousands to millions
+// Rubric: "at least 64 threads in one block at a minimum."
+static const int kMinThreadsPerBlock = 64;
+// Prompt item 1: thousands to millions of elements, even on a small launch.
+static const int kMinElements = 1 << 20;
+static const int kDefaultTotalThreads = 1 << 20;
+static const int kDefaultBlockSize = 256;  // Module 3D rule of thumb; >= 64
 static const int kIters = 1024;
 static const int kGpuWarmup = 1;
 static const int kGpuReps = 10;
 static const int kCpuWarmup = 1;
 static const int kCpuReps = 5;
+static const float kPathAMul = 1.0001f;
+static const float kPathAAdd = 1.0f;
+static const float kPathBMul = 0.9999f;
+static const float kPathBAdd = -1.0f;
+static const float kInitScale = 0.001f;
+static const int kInitPeriod = 1000;
+static const float kInitOffset = 0.1f;
+static const float kMatchTol = 1e-4f;
+static const float kHandTol = 1e-6f;
 
 // Shared by host and device so CPU and GPU execute the same arithmetic.
 __host__ __device__ __forceinline__ float pathA(float v, int iters)
 {
     for (int k = 0; k < iters; ++k)
-        v = v * 1.0001f + 1.0f;
+        v = v * kPathAMul + kPathAAdd;
     return v;
 }
 
 __host__ __device__ __forceinline__ float pathB(float v, int iters)
 {
     for (int k = 0; k < iters; ++k)
-        v = v * 0.9999f - 1.0f;
+        v = v * kPathBMul + kPathBAdd;
     return v;
 }
 
@@ -177,12 +199,11 @@ struct CheckResult {
 static CheckResult compare(const float *cpu, const float *gpu, int n)
 {
     CheckResult r = {0, 0.0f, 0.0f, 0.0f};
-    const float tol = 1e-4f;
     for (int i = 0; i < n; ++i) {
         const float err = fabsf(cpu[i] - gpu[i]);
         if (err > r.maxAbsErr)
             r.maxAbsErr = err;
-        if (err > tol)
+        if (err > kMatchTol)
             ++r.mismatches;
     }
     if (n > 0) {
@@ -194,7 +215,8 @@ static CheckResult compare(const float *cpu, const float *gpu, int n)
 
 static float timeCpu(const float *x, float *y, int n, int iters, int variant, int warpSize)
 {
-    cpuWork(x, y, n, iters, variant, warpSize);  // warm-up
+    for (int w = 0; w < kCpuWarmup; ++w)
+        cpuWork(x, y, n, iters, variant, warpSize);
     auto t0 = std::chrono::high_resolution_clock::now();
     for (int r = 0; r < kCpuReps; ++r)
         cpuWork(x, y, n, iters, variant, warpSize);
@@ -255,8 +277,8 @@ int main(int argc, char **argv)
 {
     // Starter convention: total threads and threads per block. These
     // size the GPU launch only. The CPU loop below never reads them.
-    int totalThreads = (1 << 20);
-    int blockSize = 256;
+    int totalThreads = kDefaultTotalThreads;
+    int blockSize = kDefaultBlockSize;
 
     if (argc >= 2)
         totalThreads = atoi(argv[1]);
@@ -280,6 +302,11 @@ int main(int argc, char **argv)
         fprintf(stderr, "block size %d exceeds device maxThreadsPerBlock %d\n",
                 blockSize, prop.maxThreadsPerBlock);
         return EXIT_FAILURE;
+    }
+    if (blockSize < kMinThreadsPerBlock) {
+        printf("Warning: block size %d is below the rubric minimum of %d "
+               "threads in one block.\n",
+               blockSize, kMinThreadsPerBlock);
     }
     if (blockSize % prop.warpSize != 0) {
         printf("Warning: block size %d is not a multiple of warpSize %d; "
@@ -318,7 +345,7 @@ int main(int argc, char **argv)
 
     std::vector<float> hX(n), hYcpu(n), hYgpu(n);
     for (int i = 0; i < n; ++i)
-        hX[i] = 0.001f * static_cast<float>(i % 1000) + 0.1f;
+        hX[i] = kInitScale * static_cast<float>(i % kInitPeriod) + kInitOffset;
 
     float *dX = nullptr, *dY = nullptr;
     const size_t bytes = static_cast<size_t>(n) * sizeof(float);
@@ -349,8 +376,8 @@ int main(int argc, char **argv)
     cpuWork(hX.data(), hYcpu.data(), n, iters, kDivergent, prop.warpSize);
     const float handErr0 = fabsf(hYcpu[0] - expect0);
     const float handErr1 = fabsf(hYcpu[1] - expect1);
-    const char *handStatus = (handErr0 <= 1e-6f && handErr1 <= 1e-6f) ? "PASS" : "FAIL";
-    if (handErr0 > 1e-6f || handErr1 > 1e-6f)
+    const char *handStatus = (handErr0 <= kHandTol && handErr1 <= kHandTol) ? "PASS" : "FAIL";
+    if (handErr0 > kHandTol || handErr1 > kHandTol)
         ++failed;
     printf("hand check x[0]->pathB, x[1]->pathA : %s  err0=%.6g err1=%.6g\n",
            handStatus, handErr0, handErr1);
@@ -363,7 +390,9 @@ int main(int argc, char **argv)
 
     FILE *csv = fopen("results.csv", "w");
     if (csv) {
-        fprintf(csv, "variant,n,block_size,num_blocks,iters,cpu_ms,gpu_kernel_ms,gpu_e2e_ms,speedup\n");
+        fprintf(csv,
+                "variant,n,total_threads,block_size,num_blocks,iters,"
+                "cpu_ms,gpu_kernel_ms,gpu_e2e_ms,speedup\n");
     }
 
     for (Variant v : variants) {
@@ -376,8 +405,8 @@ int main(int argc, char **argv)
         printf("%-36s  %12.4f  %14.4f  %12.4f  %10.2fx\n",
                variantName(v), cpuMs, gpuMs, e2eMs, speedup);
         if (csv) {
-            fprintf(csv, "\"%s\",%d,%d,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
-                    variantName(v), n, blockSize, numBlocks, iters,
+            fprintf(csv, "\"%s\",%d,%d,%d,%d,%d,%.6f,%.6f,%.6f,%.6f\n",
+                    variantName(v), n, totalThreads, blockSize, numBlocks, iters,
                     cpuMs, gpuMs, e2eMs, speedup);
         }
     }

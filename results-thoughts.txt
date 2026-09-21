@@ -24,8 +24,8 @@ Two things jumped out.
 
 First, on the GPU the intra-warp split costs almost exactly 2x. At one
 million elements with a full launch (1,048,576 threads, 256 per block)
-the branchless and warp-uniform kernels took 0.0883 ms and 0.0885 ms;
-the odd/even kernel took 0.1722 ms (1.95x). At four million elements the
+the branchless and warp-uniform kernels took 0.0886 ms and 0.0883 ms;
+the odd/even kernel took 0.1723 ms (1.95x). At four million elements the
 same three numbers were 0.3410 ms, 0.3443 ms, and 0.6743 ms (1.98x).
 That is what Lecture 3A said should happen: a warp has one instruction
 stream, so when its lanes disagree it runs the if body and then the else
@@ -39,11 +39,23 @@ this chip no longer discounts; aligning to a whole warp is what actually
 helped.
 
 The required assignment.exe 512 256 run is the same 1,048,576 elements
-but only two blocks. The GPU is slower in absolute time (4.06 ms
-branchless vs 0.088 ms with 4,096 blocks) because 48 SMs are mostly
+but only two blocks. The GPU is slower in absolute time (4.0433 ms
+branchless vs 0.0886 ms with 4,096 blocks) because 48 SMs are mostly
 idle — Lecture 3D's "allocate large numbers of threads." The *ratio*
-is unchanged: 8.00 / 4.06 = 1.97x. Divergence is a property of the
+is unchanged: 7.9973 / 4.0433 = 1.98x. Divergence is a property of the
 warp, not of how many blocks you launched.
+
+The rubric asked for two more thread counts and two more block sizes,
+all from the command line, with every run captured. I used 65,536 and
+1,048,576 threads (on top of 512) and block sizes 128 and 64 (on top of
+256). Proof is in proof/run_512_256.txt, run_65536_256.txt,
+run_1048576_256.txt, run_1048576_128.txt, and run_1048576_64.txt.
+Going from 512 threads to 65,536 drops the branchless kernel from
+4.0433 ms to 0.1069 ms; going on to 1,048,576 threads only shaves that
+to 0.0886 ms — the GPU is already busy. Changing the block size from
+256 to 128 or 64 at a full million-thread launch does almost nothing
+(0.0886 / 0.0883 / 0.0884 ms). The 2x divergence tax is the same in
+every one of those five transcripts.
 
 Second, the CPU barely noticed. Across the three variants its time
 moved by a couple of milliseconds on a one-second run. A CPU thread

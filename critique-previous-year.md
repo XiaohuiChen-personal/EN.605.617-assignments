@@ -1,6 +1,9 @@
-# Previous-year `main` — short critique
+# Stretch problem — previous-year `main`
 
-Xiaohui Chen · EN.605.617.81 · Module 3, item 5
+Xiaohui Chen · EN.605.617.81 · Module 3 rubric “Stretch Problem” (5 pts)
+
+Identify both issues and good qualities, as the rubric asks. I am not
+fixing or submitting that `main`.
 
 The prompt asks: if the surrounding script only executes this `main`
 once, what is good and bad about it? I am not fixing or submitting that
