@@ -1,0 +1,37 @@
+# assignment.exe 512 256
+# Built and run 2026-09-20 on DGX Spark
+# nvcc V13.0.88, -arch=native (sm_121), driver 580.159.03
+=== Device ===
+name                      : NVIDIA GB10
+compute capability        : 12.1
+SMs                       : 48
+warpSize                  : 32
+max threads / block       : 1024
+max threads / SM          : 1536
+global memory (bytes)     : 130663170048
+driver / runtime          : 13000 / 13000
+
+=== Launch ===
+totalThreads              : 512
+blockSize                 : 256
+numBlocks                 : 2
+N (elements)              : 512
+iters / element           : 1024
+GPU timing                : 1 warm-up + avg of 10 (cudaEvent)
+CPU timing                : 1 warm-up + avg of 5 (chrono)
+command                   : assignment.exe 512 256
+
+=== Correctness (GPU vs CPU, tol 1e-4) ===
+branchless                           : PASS  mismatches=0  max_abs_err=0  y[0] cpu=1078.328369 gpu=1078.328369
+divergent (i & 1)                    : PASS  mismatches=0  max_abs_err=0  y[0] cpu=-973.263611 gpu=-973.263611
+warp-uniform (i / warpSize) & 1      : PASS  mismatches=0  max_abs_err=0  y[0] cpu=-973.263611 gpu=-973.263611
+hand check x[0]->pathB, x[1]->pathA : PASS  err0=0 err1=0
+
+=== Timing (milliseconds; GPU kernel excludes H2D/D2H) ===
+variant                                     cpu_ms   gpu_kernel_ms    gpu_e2e_ms     cpu/gpu
+-------                                     ------   -------------    ----------     -------
+branchless                                  0.5045          0.0043        0.0100      117.48x
+divergent (i & 1)                           0.4994          0.0062        0.0117       80.53x
+warp-uniform (i / warpSize) & 1             0.4989          0.0042        0.0107      118.37x
+
+All correctness checks passed.

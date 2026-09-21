@@ -1,0 +1,12 @@
+# Consumed by the course assignment runner (assignment_build_execution).
+# folder is relative to this file and must contain build.sh / run.sh.
+folder: module3
+
+# One build: `make` with no arguments, producing assignment.exe.
+build: {}
+
+# Two independent runs. The required smoke test is 512 256; the second
+# uses the starter defaults (1 << 20 threads, 256 threads per block).
+run:
+  - [512, 256]
+  - []
