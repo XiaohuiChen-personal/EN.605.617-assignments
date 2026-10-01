@@ -1,4 +1,8 @@
 # Course assignment runner (assignment_build_execution).
+# This file stays at the repository root. `folder` names the assignment
+# the runner builds. Later assignments are sibling moduleN/ directories;
+# change `folder` when that assignment is the one to run, and leave the
+# earlier directories in the tree.
 # folder is relative to this file and must contain build.sh / run.sh.
 folder: module3
 
