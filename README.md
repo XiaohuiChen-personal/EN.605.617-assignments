@@ -11,13 +11,15 @@ Each assignment is a `moduleN/` directory. The course runner reads
 
 | Path | Role |
 | --- | --- |
-| `assignment_config.yaml` | Runner config. `folder` is the assignment it builds and runs. |
+| `assignment_config.yaml` | Runner config. `folder` is the assignment it builds and runs. Currently `module5`. |
 | `module3/` | Module 3 — CUDA Threads and Blocks. Submitted. |
-| `moduleN/` | A later assignment. Same shape: `build.sh`, `run.sh`, sources, and that assignment's write-up. |
+| `module5/` | Module 5 — CUDA memory. |
+| `moduleN/` | A later assignment. Same shape: `build.sh`, `run.sh`, sources, and that assignment's notes. |
 
-`assignment.cu` for Module 3 stays in `module3/`, which is what the
-assignment prompt requires. `build.sh` and `run.sh` live in that same
-child directory, which is what `folder: module3` points at.
+`assignment.cu` for Module 3 stays in `module3/`, which is what that
+assignment prompt requires. Each assignment's `build.sh` and `run.sh`
+live in its own `moduleN/` directory. The runner follows `folder` in
+`assignment_config.yaml`, which is `module5`.
 
 To add a later assignment:
 
@@ -41,7 +43,7 @@ GPU output is checked against the CPU. Both sides are timed.
 | --- | --- |
 | CPU + CUDA, minimal branching, and the branching comparison | `module3/assignment.cu` |
 | `assignment.exe 512 256`, `make` → `assignment.exe` | `module3/Makefile` |
-| Course runner config | `assignment_config.yaml` (`folder: module3`) |
+| Course runner config | `assignment_config.yaml` (was `folder: module3`; the file now points at `module5`) |
 | Build / run scripts | `module3/build.sh`, `module3/run.sh` |
 | Performance comparison charts | `module3/figures/fig_cpu_gpu_branching.png`, `module3/figures/fig_launch_configs.png` |
 | Short text file on the results | `module3/results-thoughts.txt` |
@@ -64,8 +66,8 @@ Needs an NVIDIA GPU and the CUDA toolkit (`nvcc` on `PATH`, or at
 ./module3/run.sh 1048576 64       # additional block size (>= 64)
 ```
 
-Those five launches are listed in `assignment_config.yaml`. Thread count
-and block size both come from command-line arguments.
+Thread count and block size both come from command-line arguments.
+Those five launches were the `run:` list while `folder` was `module3`.
 
 Or:
 
@@ -106,3 +108,18 @@ The CPU does not care about the branch (about 1.03 s on every row). The
 GPU pays almost 2× when the `if`/`else` splits a warp, and nothing extra
 when the same `if` is aligned to `warpSize`. The discussion is in
 `module3/results-thoughts.txt` and `module3/writeup.html`.
+
+## Module 5 — CUDA memory
+
+`module5/assignment.cu` runs one Horner polynomial (256 weights) three
+ways: weights in global memory, in `__constant__` memory, and in
+`__shared__` memory. Host arrays hold `x`, `y`, and the weights.
+`float xi` and the accumulator `float h` are registers (0 bytes of
+local memory on this build). Thread count and block size come from
+argv. Details, the timing table, and build steps are in
+`module5/README.md`. Transcripts are in `module5/proof/`.
+
+```bash
+./module5/build.sh
+./module5/run.sh 1048576 256
+```

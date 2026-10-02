@@ -1,21 +1,18 @@
 # Course assignment runner (assignment_build_execution).
 # This file stays at the repository root. `folder` names the assignment
-# the runner builds. Later assignments are sibling moduleN/ directories;
-# change `folder` when that assignment is the one to run, and leave the
-# earlier directories in the tree.
+# the runner builds. module3/ is the previous submission and stays in
+# the tree; switch `folder` back to module3 to rebuild that one.
 # folder is relative to this file and must contain build.sh / run.sh.
-folder: module3
+folder: module5
 
 # `make` with no arguments → assignment.exe
 build: {}
 
-# Rubric: two additional thread counts and two additional block sizes,
-# all from command-line arguments (not hard-coded launches), and all
-# runs captured. The first line is the required assignment.exe 512 256.
-# Every block size is >= 64 (rubric: "at least 64 threads in one block").
+# total threads, threads per block. Block count is threads/block.
+# These five runs change the thread count and the block size.
 run:
-  - [512, 256]        # required invocation
-  - [65536, 256]      # additional thread count
-  - [1048576, 256]    # additional thread count
-  - [1048576, 128]    # additional block size
-  - [1048576, 64]     # additional block size (rubric minimum of 64)
+  - [512, 256]
+  - [65536, 256]
+  - [1048576, 256]
+  - [1048576, 128]
+  - [1048576, 64]

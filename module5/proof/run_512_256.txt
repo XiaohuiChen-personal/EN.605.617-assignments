@@ -1,0 +1,42 @@
+=== Device ===
+name                  : NVIDIA GB10
+compute capability    : 12.1
+SMs                   : 48
+warpSize              : 32
+global memory (bytes) : 130663170048
+driver / runtime      : 13000 / 13000
+
+=== Launch ===
+command               : assignment.exe 512 256
+totalThreads          : 512
+blockSize             : 256
+numBlocks             : 2
+N                     : 4194304
+K                     : 256
+note                  : grid-stride, 512 threads cover N
+
+=== Memories ===
+host                  : hX[4194304], hY[4194304], hW[256]
+global                : dX, dY, dW
+constant              : __constant__ cW[256]
+shared                : __shared__ sW[256] in kernelShared
+registers             : float xi, float h in each kernel (local bytes below)
+  kernelGlobal       regs= 38  local=   0 B  shared=   0 B
+  kernelConstant     regs= 20  local=   0 B  shared=   0 B
+  kernelShared       regs= 25  local=   0 B  shared=1024 B
+
+=== Correctness (vs host Horner, tol 0.0001) ===
+global weights     : PASS  mismatches=0  max_abs_err=0  y[0]=0.003906 (host 0.003906)
+constant weights   : PASS  mismatches=0  max_abs_err=0  y[0]=0.003906 (host 0.003906)
+shared weights     : PASS  mismatches=0  max_abs_err=0  y[0]=0.003906 (host 0.003906)
+
+=== Timing (ms, mean of 10 after 1 warmup; kernel only) ===
+kernel                      ms
+global weights         14.3577
+constant weights       10.2531
+shared weights          9.1360
+same Horner loop; time relative to global weights:
+  constant / global = 0.714
+  shared / global   = 0.636
+
+All correctness checks passed.
