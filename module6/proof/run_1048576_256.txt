@@ -1,0 +1,25 @@
+device                : NVIDIA GB10
+compute capability    : 12.1
+SMs                   : 48
+warpSize              : 32
+concurrentKernels     : 1
+asyncEngineCount      : 1
+integrated            : 1
+driver / runtime      : 13000 / 13000
+command               : assignment.exe 1048576 256
+N                     : 1048576
+block                 : 256
+steps                 : 1024
+reps                  : 5 after 1 warmup
+checked indices       : i < 64, or i >= 4097 with i % 4097 == 0, or i == N-1
+
+mode          wall_ms    k0_ms    k1_ms k_overlap  max_abs_err  check
+one_stream     0.8908   0.3016   0.3047       0/5            0  PASS
+             last rep from ref: A 0.0748..0.3758  B 0.5159..0.8212 ms
+two_streams    0.7364   0.3045   0.5219       5/5            0  PASS
+             last rep from ref: A 0.0761..0.3811  B 0.1475..0.6699 ms
+wait_event     0.7584   0.3044   0.3060       0/5            0  PASS
+             last rep from ref: A 0.0759..0.3802  B 0.3838..0.6915 ms
+wall two_streams/one_stream = 0.827
+wall wait_event/one_stream  = 0.851
+All checks passed.

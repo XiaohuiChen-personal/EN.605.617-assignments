@@ -11,15 +11,16 @@ Each assignment is a `moduleN/` directory. The course runner reads
 
 | Path | Role |
 | --- | --- |
-| `assignment_config.yaml` | Runner config. `folder` is the assignment it builds and runs. Currently `module5`. |
+| `assignment_config.yaml` | Runner config. `folder` is the assignment it builds and runs. Currently `module6`. |
 | `module3/` | Module 3 — CUDA Threads and Blocks. Submitted. |
 | `module5/` | Module 5 — CUDA memory. |
+| `module6/` | Module 6 — CUDA streams and events. |
 | `moduleN/` | A later assignment. Same shape: `build.sh`, `run.sh`, sources, and that assignment's notes. |
 
 `assignment.cu` for Module 3 stays in `module3/`, which is what that
 assignment prompt requires. Each assignment's `build.sh` and `run.sh`
 live in its own `moduleN/` directory. The runner follows `folder` in
-`assignment_config.yaml`, which is `module5`.
+`assignment_config.yaml`, which is `module6`.
 
 To add a later assignment:
 
@@ -43,7 +44,7 @@ GPU output is checked against the CPU. Both sides are timed.
 | --- | --- |
 | CPU + CUDA, minimal branching, and the branching comparison | `module3/assignment.cu` |
 | `assignment.exe 512 256`, `make` → `assignment.exe` | `module3/Makefile` |
-| Course runner config | `assignment_config.yaml` (was `folder: module3`; the file now points at `module5`) |
+| Course runner config | `assignment_config.yaml` (was `folder: module3`; the file now points at `module6`) |
 | Build / run scripts | `module3/build.sh`, `module3/run.sh` |
 | Performance comparison charts | `module3/figures/fig_cpu_gpu_branching.png`, `module3/figures/fig_launch_configs.png` |
 | Short text file on the results | `module3/results-thoughts.txt` |
@@ -122,4 +123,15 @@ argv. Details, the timing table, and build steps are in
 ```bash
 ./module5/build.sh
 ./module5/run.sh 1048576 256
+```
+
+## Module 6 — CUDA streams and events
+
+`module6/assignment.cu` runs one kernel on two arrays under three schedules: one stream, two streams, and two streams with `cudaStreamWaitEvent` between the kernels. The kernel code is the same in every launch. N comes from argv. The timing table and build steps are in `module6/README.md`. Transcripts are in `module6/proof/`.
+
+On the 2026-10-10 GB10 run, at N = 16777216, the printed walls were 14.1724 ms (`one_stream`), 11.7602 ms (`two_streams`), and 11.7809 ms (`wait_event`). Kernel intervals overlapped on 5/5 reps for `two_streams` and on 0/5 for the other two modes. Every checked launch printed `PASS` with `max_abs_err` 0.
+
+```bash
+./module6/build.sh
+./module6/run.sh 1048576 256
 ```

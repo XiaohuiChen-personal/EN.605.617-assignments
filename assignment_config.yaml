@@ -1,18 +1,16 @@
 # Course assignment runner (assignment_build_execution).
 # This file stays at the repository root. `folder` names the assignment
-# the runner builds. module3/ is the previous submission and stays in
-# the tree; switch `folder` back to module3 to rebuild that one.
+# the runner builds. Earlier moduleN/ directories stay in the tree.
 # folder is relative to this file and must contain build.sh / run.sh.
-folder: module5
+folder: module6
 
 # `make` with no arguments → assignment.exe
 build: {}
 
-# total threads, threads per block. Block count is threads/block.
-# These five runs change the thread count and the block size.
+# N (elements in each of the two arrays), threads per block.
+# The four runs change the dataset length. The kernel does not.
 run:
-  - [512, 256]
-  - [65536, 256]
+  - [262144, 256]
   - [1048576, 256]
-  - [1048576, 128]
-  - [1048576, 64]
+  - [4194304, 256]
+  - [16777216, 256]
