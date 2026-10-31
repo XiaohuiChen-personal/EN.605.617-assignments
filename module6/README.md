@@ -30,7 +30,7 @@ Needs an NVIDIA GPU and `nvcc` (`PATH`, or `/usr/local/cuda/bin`). From this dir
 
 `make` alone also produces `assignment.exe`.
 
-The course runner reads `assignment_config.yaml` at the repository root (`folder: module6`) and calls `build.sh`, then `run.sh` once per row:
+When `folder` in the root `assignment_config.yaml` is `module6`, the runner calls `build.sh`, then `run.sh` once per row:
 
 ```bash
 ./run.sh 262144 256

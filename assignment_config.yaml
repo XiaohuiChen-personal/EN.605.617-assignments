@@ -2,15 +2,11 @@
 # This file stays at the repository root. `folder` names the assignment
 # the runner builds. Earlier moduleN/ directories stay in the tree.
 # folder is relative to this file and must contain build.sh / run.sh.
-folder: module6
+folder: module9
 
-# `make` with no arguments → assignment.exe
+# `./build.sh` → assignment.exe. cuDNN is not in the toolkit; build.sh sets CUDNN_ROOT.
 build: {}
 
-# N (elements in each of the two arrays), threads per block.
-# The four runs change the dataset length. The kernel does not.
+# RNG seed. One run classifies 12 generated clips.
 run:
-  - [262144, 256]
-  - [1048576, 256]
-  - [4194304, 256]
-  - [16777216, 256]
+  - [1]

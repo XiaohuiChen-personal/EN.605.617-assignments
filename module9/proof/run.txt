@@ -1,0 +1,32 @@
+device NVIDIA GB10, cc 12.1
+cudnn 9.27.0 (header 92700)
+audio 8000 Hz, 8000 samples, frame 256, hop 128, 61 frames, 129 bins
+clips 12 (4 per class), seed 1, 1000 Hz amplitude 0.4
+cufft R2C batch 732
+conv output 12 3 1 61
+pool output 12 3 1 1
+algo IMPLICIT_GEMM workspace CUDNN_STATUS_SUCCESS forward CUDNN_STATUS_SUCCESS bytes 0
+algo IMPLICIT_PRECOMP_GEMM workspace CUDNN_STATUS_SUCCESS forward CUDNN_STATUS_SUCCESS bytes 388096
+algo GEMM workspace CUDNN_STATUS_SUCCESS forward CUDNN_STATUS_SUCCESS bytes 0
+algo DIRECT workspace CUDNN_STATUS_NOT_SUPPORTED
+algo FFT workspace CUDNN_STATUS_SUCCESS forward CUDNN_STATUS_SUCCESS bytes 19023376
+algo FFT_TILING workspace CUDNN_STATUS_SUCCESS forward CUDNN_STATUS_SUCCESS bytes 3024792
+algo WINOGRAD workspace CUDNN_STATUS_NOT_SUPPORTED
+algo WINOGRAD_NONFUSED workspace CUDNN_STATUS_NOT_SUPPORTED
+using IMPLICIT_GEMM
+conv vs cpu max_abs_err 0.000e+00
+clip  label     pred      p_440   p_1000  p_noise
+   0  440 Hz    440 Hz    0.5453  0.2047  0.2500
+   1  440 Hz    440 Hz    0.5453  0.2047  0.2500
+   2  440 Hz    440 Hz    0.5453  0.2047  0.2500
+   3  440 Hz    440 Hz    0.5453  0.2047  0.2500
+   4  1000 Hz   1000 Hz   0.2028  0.5496  0.2476
+   5  1000 Hz   1000 Hz   0.2028  0.5496  0.2476
+   6  1000 Hz   1000 Hz   0.2028  0.5496  0.2477
+   7  1000 Hz   1000 Hz   0.2028  0.5496  0.2476
+   8  noise     noise     0.3185  0.3157  0.3657
+   9  noise     noise     0.3163  0.3159  0.3678
+  10  noise     noise     0.3168  0.3161  0.3671
+  11  noise     noise     0.3189  0.3141  0.3670
+correct 12/12
+PASS

@@ -11,16 +11,17 @@ Each assignment is a `moduleN/` directory. The course runner reads
 
 | Path | Role |
 | --- | --- |
-| `assignment_config.yaml` | Runner config. `folder` is the assignment it builds and runs. Currently `module6`. |
+| `assignment_config.yaml` | Runner config. `folder` is the assignment it builds and runs. Currently `module9`. |
 | `module3/` | Module 3 — CUDA Threads and Blocks. Submitted. |
 | `module5/` | Module 5 — CUDA memory. |
 | `module6/` | Module 6 — CUDA streams and events. |
+| `module9/` | Module 9 — CUDA advanced libraries (cuFFT and cuDNN). |
 | `moduleN/` | A later assignment. Same shape: `build.sh`, `run.sh`, sources, and that assignment's notes. |
 
 `assignment.cu` for Module 3 stays in `module3/`, which is what that
 assignment prompt requires. Each assignment's `build.sh` and `run.sh`
 live in its own `moduleN/` directory. The runner follows `folder` in
-`assignment_config.yaml`, which is `module6`.
+`assignment_config.yaml`, which is `module9`.
 
 To add a later assignment:
 
@@ -44,7 +45,7 @@ GPU output is checked against the CPU. Both sides are timed.
 | --- | --- |
 | CPU + CUDA, minimal branching, and the branching comparison | `module3/assignment.cu` |
 | `assignment.exe 512 256`, `make` → `assignment.exe` | `module3/Makefile` |
-| Course runner config | `assignment_config.yaml` (was `folder: module3`; the file now points at `module6`) |
+| Course runner config | `assignment_config.yaml` (was `folder: module3`; the file now points at `module9`) |
 | Build / run scripts | `module3/build.sh`, `module3/run.sh` |
 | Performance comparison charts | `module3/figures/fig_cpu_gpu_branching.png`, `module3/figures/fig_launch_configs.png` |
 | Short text file on the results | `module3/results-thoughts.txt` |
@@ -134,4 +135,15 @@ On the 2026-10-10 GB10 run, at N = 16777216, the printed walls were 14.1724 ms (
 ```bash
 ./module6/build.sh
 ./module6/run.sh 1048576 256
+```
+
+## Module 9 — CUDA advanced libraries
+
+`module9/assignment.cu` generates twelve one-second clips and names each one 440 Hz, 1000 Hz, or noise. cuFFT builds the spectrogram. cuDNN runs the convolution, ReLU, max-pool, and softmax. Build steps and the seed-1 table are in `module9/README.md`. The transcript is `module9/proof/run.txt`. The one-page note is in the course repo, `assignments/assignment9/writeup.pdf`.
+
+The 2026-10-31 GB10 run printed `correct 12/12`, `max_abs_err 0.000e+00`, and `PASS`.
+
+```bash
+./module9/build.sh
+./module9/run.sh 1
 ```
