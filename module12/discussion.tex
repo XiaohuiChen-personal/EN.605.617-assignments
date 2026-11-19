@@ -1,0 +1,32 @@
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=1in,headheight=15pt]{geometry}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+
+\doublespacing
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyhead[L]{Xiaohui Chen}
+\fancyhead[R]{EN.605.617.81}
+\fancyfoot[L]{Module 12, OpenCL}
+\fancyfoot[R]{page \thepage\ of \pageref{LastPage}}
+
+\begin{document}
+
+\noindent\textbf{Finding the closest word.}
+
+I wanted a small OpenCL program whose printed answer is easy to check. A reader does not need to know how a language model works. Each word is a list of numbers. The program finds the stored list closest to a query, by the smallest sum of squared differences. The query is one stored row with 0.05 added to its first number, so I know which row should win. A C loop has to name that same row.
+
+The table is one buffer. The search uses a sub-buffer, so the slice can start after the first word. On the NVIDIA GB10 the program printed an alignment of 512 bytes. A word of 256 floats is 1024 bytes, which is a multiple of 512, so any word index is a legal start. The run that searches only word 10 prints word 10, and the sub-buffer offset is 10240 bytes.
+
+One work-group handles one word. The work-items split the list and add the partial sums in local memory. The barrier is outside the per-thread branch, so the whole group reaches it. The load is one float, a float4, or a float8, chosen on the command line. For float8 I split the vector in half and add the dot product of each half with itself. A second kernel keeps the smallest distance. One of the runs maps the result back, and the others copy it. \texttt{main} only calls these steps.
+
+With the NVIDIA program cache off, the build log says the compiler may inline each kernel. The source does not call a kernel from another kernel, and the build succeeds. All five runs printed PASS. The absolute error on that line is 0.000e+00, and the program compares only the winning distance. That row differs in one component, so both sides add one product to a string of zeros and get the same bits. Across the 65536-word runs, 57278 to 57604 rows differ in the last bits, and the largest gap was 1.640e-04. At 65536 words the printed medians were 0.2561~ms for scalar loads with a group of 128, 0.2605~ms for float4 with a group of 64, and 0.2605~ms for float8 with a group of 32. Those three differ by 0.0044~ms. A float4 run of the same length, with a group of 256, took 0.2900~ms.
+
+\end{document}

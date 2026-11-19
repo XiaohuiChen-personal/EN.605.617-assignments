@@ -1,0 +1,102 @@
+/* Status checks for the host program. */
+#ifndef CL_CHECK_H
+#define CL_CHECK_H
+
+#ifndef CL_TARGET_OPENCL_VERSION
+#define CL_TARGET_OPENCL_VERSION 300
+#endif
+
+#include <CL/cl.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+struct err_name {
+    cl_int code;
+    const char *name;
+};
+
+static const struct err_name k_err_names[] = {
+    {CL_SUCCESS, "CL_SUCCESS"},
+    {CL_DEVICE_NOT_FOUND, "CL_DEVICE_NOT_FOUND"},
+    {CL_DEVICE_NOT_AVAILABLE, "CL_DEVICE_NOT_AVAILABLE"},
+    {CL_COMPILER_NOT_AVAILABLE, "CL_COMPILER_NOT_AVAILABLE"},
+    {CL_MEM_OBJECT_ALLOCATION_FAILURE,
+        "CL_MEM_OBJECT_ALLOCATION_FAILURE"},
+    {CL_OUT_OF_RESOURCES, "CL_OUT_OF_RESOURCES"},
+    {CL_OUT_OF_HOST_MEMORY, "CL_OUT_OF_HOST_MEMORY"},
+    {CL_PROFILING_INFO_NOT_AVAILABLE,
+        "CL_PROFILING_INFO_NOT_AVAILABLE"},
+    {CL_MEM_COPY_OVERLAP, "CL_MEM_COPY_OVERLAP"},
+    {CL_BUILD_PROGRAM_FAILURE, "CL_BUILD_PROGRAM_FAILURE"},
+    {CL_MAP_FAILURE, "CL_MAP_FAILURE"},
+    {CL_MISALIGNED_SUB_BUFFER_OFFSET,
+        "CL_MISALIGNED_SUB_BUFFER_OFFSET"},
+    {CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST,
+        "CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST"},
+    {CL_INVALID_VALUE, "CL_INVALID_VALUE"},
+    {CL_INVALID_DEVICE_TYPE, "CL_INVALID_DEVICE_TYPE"},
+    {CL_INVALID_PLATFORM, "CL_INVALID_PLATFORM"},
+    {CL_INVALID_DEVICE, "CL_INVALID_DEVICE"},
+    {CL_INVALID_CONTEXT, "CL_INVALID_CONTEXT"},
+    {CL_INVALID_QUEUE_PROPERTIES, "CL_INVALID_QUEUE_PROPERTIES"},
+    {CL_INVALID_COMMAND_QUEUE, "CL_INVALID_COMMAND_QUEUE"},
+    {CL_INVALID_HOST_PTR, "CL_INVALID_HOST_PTR"},
+    {CL_INVALID_MEM_OBJECT, "CL_INVALID_MEM_OBJECT"},
+    {CL_INVALID_BINARY, "CL_INVALID_BINARY"},
+    {CL_INVALID_BUILD_OPTIONS, "CL_INVALID_BUILD_OPTIONS"},
+    {CL_INVALID_PROGRAM, "CL_INVALID_PROGRAM"},
+    {CL_INVALID_PROGRAM_EXECUTABLE,
+        "CL_INVALID_PROGRAM_EXECUTABLE"},
+    {CL_INVALID_KERNEL_NAME, "CL_INVALID_KERNEL_NAME"},
+    {CL_INVALID_KERNEL_DEFINITION,
+        "CL_INVALID_KERNEL_DEFINITION"},
+    {CL_INVALID_KERNEL, "CL_INVALID_KERNEL"},
+    {CL_INVALID_ARG_INDEX, "CL_INVALID_ARG_INDEX"},
+    {CL_INVALID_ARG_VALUE, "CL_INVALID_ARG_VALUE"},
+    {CL_INVALID_ARG_SIZE, "CL_INVALID_ARG_SIZE"},
+    {CL_INVALID_KERNEL_ARGS, "CL_INVALID_KERNEL_ARGS"},
+    {CL_INVALID_WORK_DIMENSION, "CL_INVALID_WORK_DIMENSION"},
+    {CL_INVALID_WORK_GROUP_SIZE, "CL_INVALID_WORK_GROUP_SIZE"},
+    {CL_INVALID_WORK_ITEM_SIZE, "CL_INVALID_WORK_ITEM_SIZE"},
+    {CL_INVALID_GLOBAL_OFFSET, "CL_INVALID_GLOBAL_OFFSET"},
+    {CL_INVALID_EVENT_WAIT_LIST, "CL_INVALID_EVENT_WAIT_LIST"},
+    {CL_INVALID_EVENT, "CL_INVALID_EVENT"},
+    {CL_INVALID_OPERATION, "CL_INVALID_OPERATION"},
+    {CL_INVALID_BUFFER_SIZE, "CL_INVALID_BUFFER_SIZE"},
+    {CL_INVALID_GLOBAL_WORK_SIZE, "CL_INVALID_GLOBAL_WORK_SIZE"},
+    {CL_INVALID_PROPERTY, "CL_INVALID_PROPERTY"},
+    {CL_KERNEL_ARG_INFO_NOT_AVAILABLE,
+        "CL_KERNEL_ARG_INFO_NOT_AVAILABLE"},
+};
+
+static const char *cl_err_name(cl_int st)
+{
+    size_t i;
+    size_t n = sizeof k_err_names / sizeof k_err_names[0];
+
+    for (i = 0; i < n; i++) {
+        if (k_err_names[i].code == st)
+            return k_err_names[i].name;
+    }
+    return "CL_UNKNOWN";
+}
+
+#define CL_CHECK(call) do { \
+    cl_int _st = (cl_int)(call); \
+    if (_st != CL_SUCCESS) { \
+        fprintf(stderr, "%s:%d: %s (%d)\n", \
+            __FILE__, __LINE__, cl_err_name(_st), (int)_st); \
+        exit(EXIT_FAILURE); \
+    } \
+} while (0)
+
+#define CL_CHECK_ERR(err, what) do { \
+    if ((err) != CL_SUCCESS) { \
+        fprintf(stderr, "%s:%d: %s: %s (%d)\n", \
+            __FILE__, __LINE__, (what), \
+            cl_err_name(err), (int)(err)); \
+        exit(EXIT_FAILURE); \
+    } \
+} while (0)
+
+#endif

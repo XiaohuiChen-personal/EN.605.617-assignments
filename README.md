@@ -11,17 +11,18 @@ Each assignment is a `moduleN/` directory. The course runner reads
 
 | Path | Role |
 | --- | --- |
-| `assignment_config.yaml` | Runner config. `folder` is the assignment it builds and runs. Currently `module9`. |
+| `assignment_config.yaml` | Runner config. `folder` is the assignment it builds and runs. Currently `module12`. |
 | `module3/` | Module 3 — CUDA Threads and Blocks. Submitted. |
 | `module5/` | Module 5 — CUDA memory. |
 | `module6/` | Module 6 — CUDA streams and events. |
 | `module9/` | Module 9 — CUDA advanced libraries (cuFFT and cuDNN). |
+| `module12/` | Module 12 — OpenCL closest word. |
 | `moduleN/` | A later assignment. Same shape: `build.sh`, `run.sh`, sources, and that assignment's notes. |
 
 `assignment.cu` for Module 3 stays in `module3/`, which is what that
 assignment prompt requires. Each assignment's `build.sh` and `run.sh`
 live in its own `moduleN/` directory. The runner follows `folder` in
-`assignment_config.yaml`, which is `module9`.
+`assignment_config.yaml`, which is `module12`.
 
 To add a later assignment:
 
@@ -45,7 +46,7 @@ GPU output is checked against the CPU. Both sides are timed.
 | --- | --- |
 | CPU + CUDA, minimal branching, and the branching comparison | `module3/assignment.cu` |
 | `assignment.exe 512 256`, `make` → `assignment.exe` | `module3/Makefile` |
-| Course runner config | `assignment_config.yaml` (was `folder: module3`; the file now points at `module9`) |
+| Course runner config | `assignment_config.yaml` (was `folder: module3`; the file now points at `module12`) |
 | Build / run scripts | `module3/build.sh`, `module3/run.sh` |
 | Performance comparison charts | `module3/figures/fig_cpu_gpu_branching.png`, `module3/figures/fig_launch_configs.png` |
 | Short text file on the results | `module3/results-thoughts.txt` |
@@ -146,4 +147,15 @@ The 2026-10-31 GB10 run printed `correct 12/12`, `max_abs_err 0.000e+00`, and `P
 ```bash
 ./module9/build.sh
 ./module9/run.sh 1
+```
+
+## Module 12 — OpenCL closest word
+
+`module12/assignment.c` searches a table of word vectors for the row closest to a query. The table is one buffer and the search slice is a sub-buffer. Details, the argument list, and the timing table are in `module12/README.md`. The one-page discussion is `module12/discussion.pdf`. Transcripts are in `module12/proof/`.
+
+On the 2026-11-19 GB10 run, all five launches printed `PASS`. The printed `abs err` is `0.000e+00` on the winning distance only. At 65536 words the distance medians were 0.2561 ms (scalar, group 128), 0.2605 ms (float4, group 64), and 0.2605 ms (float8, group 32).
+
+```bash
+./module12/build.sh
+./module12/run.sh 65536 0 256 64 4 17 0
 ```

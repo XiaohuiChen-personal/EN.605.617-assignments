@@ -2,11 +2,15 @@
 # This file stays at the repository root. `folder` names the assignment
 # the runner builds. Earlier moduleN/ directories stay in the tree.
 # folder is relative to this file and must contain build.sh / run.sh.
-folder: module9
+folder: module12
 
-# `./build.sh` → assignment.exe. cuDNN is not in the toolkit; build.sh sets CUDNN_ROOT.
+# ./build.sh → assignment.exe
 build: {}
 
-# RNG seed. One run classifies 12 generated clips.
+# count, start, dim, wg, vec, target, map
 run:
-  - [1]
+  - [65536, 0, 256, 64, 4, 17, 0]      # float4, copy
+  - [1, 10, 256, 64, 4, 0, 0]          # one word, sub-buffer not at byte 0
+  - [65536, 32, 256, 128, 1, 17, 0]    # scalar loads, different group size
+  - [65536, 0, 256, 32, 8, 3, 1]       # float8, map the result
+  - [65536, 64, 256, 256, 4, 100, 0]   # longer origin, work-group at the limit

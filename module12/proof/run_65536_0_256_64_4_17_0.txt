@@ -1,0 +1,39 @@
+platform: NVIDIA CUDA
+platform version: OpenCL 3.0 CUDA 13.0.98
+device: NVIDIA GB10
+opencl c: OpenCL C 1.2
+align: 512 bytes
+constant max: 65536 bytes
+local max: 49152 bytes
+device work-group max: 1024
+kernel file: words.cl
+build log:
+(): Warning: Function distance_v1 is a kernel, so overriding noinline attribute. The function may be inlined when called.
+(): Warning: Function distance_v4 is a kernel, so overriding noinline attribute. The function may be inlined when called.
+(): Warning: Function distance_v8 is a kernel, so overriding noinline attribute. The function may be inlined when called.
+(): Warning: Function find_min is a kernel, so overriding noinline attribute. The function may be inlined when called.
+
+
+build options: -cl-std=CL1.2 -cl-kernel-arg-info
+kernels: 4
+  distance_v1
+  distance_v4
+  distance_v8
+  find_min
+work-group limit: distance 256, min 256
+distance args: 5, first table
+search: start 0, count 65536, dim 256, vec 4, wg 64
+distance kernel: distance_v4
+query: word 17, component 0 + 0.05
+sub-buffer offset: 0 bytes
+readback: copy
+groups: 65536, work-items per group: 64
+closest word: 17 (slice index 17)
+distance: 2.500000e-03
+cpu word: 17 (slice index 17)
+cpu distance: 2.500000e-03
+second distance: 2.001280e+01
+abs err: 0.000e+00
+distance median: 0.2605 ms
+min kernel: 0.0460 ms
+PASS
